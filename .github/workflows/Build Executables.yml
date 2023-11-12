@@ -1,0 +1,52 @@
+name: Build and Package Python Executables
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/*'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Setup Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.11.5
+
+    - name: Install Dependencies
+      run: |
+        pip install -r requirements.txt
+      shell: bash
+
+    - name: Install PyInstaller
+      run: |
+        pip install pyinstaller
+      shell: bash
+
+    - name: Build Executable
+      run: |
+        if [ "${{ matrix.os }}" == "windows-latest" ]; then
+          pyinstaller --onefile -n fanqie_tool_windows -i main.ico src/main.py
+        elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+          pyinstaller --onefile -n fanqie_tool_macos -i main.ico src/main.py
+        else
+          pyinstaller --onefile -n fanqie_tool_ubuntu -i main.ico src/main.py
+        fi
+      shell: bash
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v2
+      with:
+        name: executables
+        path: dist/

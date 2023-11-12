@@ -1,0 +1,6 @@
+requests
+beautifulsoup4
+packaging
+ebooklib
+tqdm
+colorama
