@@ -25,14 +25,16 @@ import hashlib
 import os
 import re
 import time
-from urllib.parse import urljoin
+# from urllib.parse import urljoin
 
 # 导入必要的模块
 import requests
+import asyncio
 from colorama import Fore, Style, init
 from tqdm import tqdm
 
 import public as p
+from get_bookinfo import get_book_info
 
 init(autoreset=True)
 
@@ -40,30 +42,12 @@ init(autoreset=True)
 # 定义正常模式用来下载番茄小说的函数
 def fanqie_n(url, encoding, user_agent, path_choice, data_folder, start_chapter_id):
 
-    from test import title, info, intro, soup, headers
-
-    # headers = {
-    #     "User-Agent": user_agent
-    # }
-    #
-    # # 获取网页源码
-    # response = requests.get(url, headers=headers)
-    # html = response.text
-    #
-    # # 解析网页源码
-    # soup = BeautifulSoup(html, "html.parser")
-    #
-    # # 获取小说标题
-    # title = soup.find("h1").get_text()
-    # # , class_ = "info-name"
-    # # 替换非法字符
-    # title = p.rename(title)
-    #
-    # # 获取小说信息
-    # info = soup.find("div", class_="page-header-info").get_text()
-    #
-    # # 获取小说简介
-    # intro = soup.find("div", class_="page-abstract-content").get_text()
+    # 调用异步函数获取7猫信息
+    book_info = asyncio.run(get_book_info(url))
+    title = book_info['title']
+    info = book_info['info']
+    intro = book_info['intro']
+    chapters = book_info['chapters']
 
     # 拼接小说内容字符串
     content = f"""如果需要小说更新，请勿修改文件名
@@ -77,9 +61,6 @@ Gitee:https://gitee.com/xingyv1024/fanqie-novel-download/
 {intro}
 """
 
-    # 获取所有章节链接
-    chapters = soup.find_all("div", class_="chapter-item")
-
     # 检查用户是否指定起始章节
     start_index = 0
     if start_chapter_id == '0':
@@ -87,8 +68,8 @@ Gitee:https://gitee.com/xingyv1024/fanqie-novel-download/
     else:
         # 找到起始章节的索引
         for i, chapter in enumerate(chapters):
-            chapter_url_tmp = urljoin(url, chapter.find("a")["href"])
-            chapter_id_tmp = re.search(r"/(\d+)", chapter_url_tmp).group(1)
+            chapter_url_tmp = chapter.find("a")["href"]  # 已删除不必要的urljoin
+            chapter_id_tmp = re.search(r"/(\d+)-(\d+)/", chapter_url_tmp).group(2)
             if chapter_id_tmp == start_chapter_id:  # 将 开始索引设置为用户的值
                 start_index = i
     file_path = None
@@ -133,13 +114,13 @@ Gitee:https://gitee.com/xingyv1024/fanqie-novel-download/
         for chapter in tqdm(chapters[start_index:]):
             time.sleep(0.25)
             # 获取章节标题
-            chapter_title = chapter.find("a").get_text()
+            chapter_title = chapter.find("span", {"class": "txt"}).get_text().strip()
 
             # 获取章节网址
-            chapter_url = urljoin(url, chapter.find("a")["href"])
+            chapter_url = chapter.find("a")["href"]
 
             # 获取章节 id
-            chapter_id = re.search(r"/(\d+)", chapter_url).group(1)
+            chapter_id = re.search(r"/(\d+)-(\d+)/", chapter_url).group(2)
 
             # 构造 api 网址
             api_url = (f"https://novel.snssdk.com/api/novel/book/reader/full/v1/?device_platform=android&"
@@ -151,7 +132,7 @@ Gitee:https://gitee.com/xingyv1024/fanqie-novel-download/
             while retry_count < 4:  # 设置最大重试次数
                 try:
                     # 获取 api 响应
-                    api_response = requests.get(api_url, headers=headers)
+                    api_response = requests.get(api_url)
 
                     # 解析 api 响应为 json 数据
                     api_data = api_response.json()
