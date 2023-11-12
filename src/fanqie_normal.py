@@ -20,18 +20,19 @@ https://www.gnu.org/licenses/gpl-3.0.html
 无论您对程序进行了任何操作，请始终保留此信息。
 """
 
+import datetime
+import hashlib
+import os
+import re
+import time
+from urllib.parse import urljoin
+
 # 导入必要的模块
 import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-import re
-import datetime
-import os
-import time
-from tqdm import tqdm
-import hashlib
-import public as p
 from colorama import Fore, Style, init
+from tqdm import tqdm
+
+import public as p
 
 init(autoreset=True)
 
@@ -39,28 +40,30 @@ init(autoreset=True)
 # 定义正常模式用来下载番茄小说的函数
 def fanqie_n(url, encoding, user_agent, path_choice, data_folder, start_chapter_id):
 
-    headers = {
-        "User-Agent": user_agent
-    }
+    from test import title, info, intro, soup, headers
 
-    # 获取网页源码
-    response = requests.get(url, headers=headers)
-    html = response.text
-
-    # 解析网页源码
-    soup = BeautifulSoup(html, "html.parser")
-
-    # 获取小说标题
-    title = soup.find("h1").get_text()
-    # , class_ = "info-name"
-    # 替换非法字符
-    title = p.rename(title)
-
-    # 获取小说信息
-    info = soup.find("div", class_="page-header-info").get_text()
-
-    # 获取小说简介
-    intro = soup.find("div", class_="page-abstract-content").get_text()
+    # headers = {
+    #     "User-Agent": user_agent
+    # }
+    #
+    # # 获取网页源码
+    # response = requests.get(url, headers=headers)
+    # html = response.text
+    #
+    # # 解析网页源码
+    # soup = BeautifulSoup(html, "html.parser")
+    #
+    # # 获取小说标题
+    # title = soup.find("h1").get_text()
+    # # , class_ = "info-name"
+    # # 替换非法字符
+    # title = p.rename(title)
+    #
+    # # 获取小说信息
+    # info = soup.find("div", class_="page-header-info").get_text()
+    #
+    # # 获取小说简介
+    # intro = soup.find("div", class_="page-abstract-content").get_text()
 
     # 拼接小说内容字符串
     content = f"""如果需要小说更新，请勿修改文件名
