@@ -4,3 +4,4 @@ packaging
 ebooklib
 tqdm
 colorama
+pycryptodome

@@ -21,6 +21,10 @@ https://www.gnu.org/licenses/gpl-3.0.html
 """
 
 import re
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import unpad
+from base64 import b64decode
+import requests
 
 
 # 替换非法字符
@@ -58,3 +62,43 @@ def fix_publisher(text):
     text = re.sub(r'<span .*?>', '', text)
     text = re.sub(r'<html .*?>', '', text)
     return text
+
+
+# 定义解密函数
+def decrypt(data, iv):
+    # print(f"Decrypting data: {data}")
+    # print(f"Using iv: {iv}")
+    key = bytes.fromhex('32343263636238323330643730396531')
+    iv = bytes.fromhex(iv)
+    cipher = AES.new(key, AES.MODE_CBC, iv=iv)
+    decrypted = unpad(cipher.decrypt(bytes.fromhex(data)), AES.block_size)
+    return decrypted.decode('utf-8')
+
+
+# 定义qimao函数
+def decrypt_qimao(content):
+    # print(f"Decrypting content: {content}")
+    txt = b64decode(content)
+    iv = txt[:16].hex()
+    # print(f"IV: {iv}")
+    fntxt = decrypt(txt[16:].hex(), iv).strip().replace('\n', '<br>')
+    return fntxt
+
+
+def get_qimao(book_id, chapter_id, sign):
+    headers = {
+        "AUTHORIZATION": "",
+        "app-version": "51110",
+        "application-id": "com.****.reader",
+        "channel": "unknown",
+        "net-env": "1",
+        "platform": "android",
+        "qm-params": "",
+        "reg": "0",
+        "sign": "fc697243ab534ebaf51d2fa80f251cb4",
+    }
+
+    response = requests.get(f"https://api-ks.wtzw.com/api/v1/chapter/content?"
+                            f"id={book_id}&chapterId={chapter_id}&sign={sign}",
+                            headers=headers)
+    return response.json()
