@@ -36,7 +36,7 @@ init(autoreset=True)
 
 
 # 定义番茄更新函数
-def fanqie_update(user_agent, data_folder):
+def qimao_update(user_agent, data_folder):
 
     # 请用户选择更新模式
     while True:

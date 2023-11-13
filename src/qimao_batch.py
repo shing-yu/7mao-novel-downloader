@@ -36,7 +36,7 @@ from get_bookinfo import get_book_info
 init(autoreset=True)
 
 
-def fanqie_b(encoding, user_agent, path_choice, data_folder):
+def qimao_b(encoding, user_agent, path_choice, data_folder):
 
     if not os.path.exists("urls.txt"):
         print("url.txt文件不存在")

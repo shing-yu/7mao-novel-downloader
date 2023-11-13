@@ -40,7 +40,7 @@ init(autoreset=True)
 
 
 # 定义正常模式用来下载番茄小说的函数
-def fanqie_epub(url, user_agent, path_choice):
+def qimao_epub(url, user_agent, path_choice):
     headers = {
         "User-Agent": user_agent
     }

@@ -38,7 +38,7 @@ init(autoreset=True)
 
 
 # 定义正常模式用来下载番茄小说的函数
-def fanqie_n(url, encoding, user_agent, path_choice, data_folder, start_chapter_id):
+def qimao_n(url, encoding, user_agent, path_choice, data_folder, start_chapter_id):
 
     book_id = re.search(r"/(\d+)/", url).group(1)
 
