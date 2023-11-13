@@ -4,10 +4,14 @@
 # 才会显示目录内容
 
 import asyncio
-from pyppeteer import launch
+import os
 import public as p
 from bs4 import BeautifulSoup
 import re
+
+# 设置镜像下载地址
+os.environ["PYPPETEER_DOWNLOAD_HOST"] = "https://mirrors.huaweicloud.com"
+from pyppeteer import launch  # noqa: E402
 
 
 async def get_book_info(url):
