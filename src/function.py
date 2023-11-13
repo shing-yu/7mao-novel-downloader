@@ -87,7 +87,7 @@ def start():
         print("2. 同意并进入自动批量模式")
         print("3. 同意并进入分章保存模式(测试)")
         print("4. 同意并进入Debug模式")
-        print("5. 同意并进入Epub电子书模式(测试)")
+        print("5. 同意并进入Epub电子书模式(开发中)")
         print("6. 查看更多")
         print("7. 更新已下载的小说")
         print("8. 查看贡献（赞助）者名单")
@@ -121,7 +121,8 @@ def start():
         elif choice == '5':
             mode = 4
             clear_screen()
-            print("您已进入Epub模式，将保留一定的小说格式。\n")
+            # print("您已进入EPUB模式，将保留一定的小说格式。\n")
+            print("EPUB模式正在开发中，敬请期待\n")
             break
         elif choice == '6':
             clear_screen()
