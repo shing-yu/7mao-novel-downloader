@@ -21,12 +21,12 @@ https://www.gnu.org/licenses/gpl-3.0.html
 """
 
 
-import fanqie_normal as fn
-import fanqie_debug as fd
-import fanqie_batch as fb
-import fanqie_chapter as fc
-import fanqie_update as fu
-import fanqie_epub as fe
+import qimao_normal as qn
+import qimao_debug as qd
+import qimao_batch as qb
+import qimao_chapter as qc
+import qimao_update as qu
+import qimao_epub as qe
 import os
 import re
 import requests
@@ -155,7 +155,7 @@ gitee地址:https://gitee.com/xingyv1024/fanqie-novel-download
             clear_screen()
             print("您已进入更新模式")
             # 调用番茄更新函数
-            return_info = fu.fanqie_update(ua, data_path)
+            return_info = qu.fanqie_update(ua, data_path)
             return
         elif choice == '8':
             clear_screen()
@@ -177,13 +177,13 @@ gitee地址:https://gitee.com/xingyv1024/fanqie-novel-download
             clear_screen()
             # 确认退出
             while True:
-                qd = input("您确定要退出程序吗(yes/no)(默认:no): ")
-                if not qd:
-                    qd = "no"
-                if qd.lower() == "yes":
+                sure = input("您确定要退出程序吗(yes/no)(默认:no): ")
+                if not sure:
+                    sure = "no"
+                if sure.lower() == "yes":
                     input("按Enter退出程序...")
                     break
-                elif qd.lower() == "no":
+                elif sure.lower() == "no":
                     flag = False
                     break
                 else:
@@ -337,19 +337,19 @@ def perform_user_mode_action():
     # 判断用户处于什么模式
     if mode == 0:
         # 调用番茄正常模式函数
-        return_info = fn.fanqie_n(page_url, txt_encoding, ua, type_path_num, data_path, start_chapter_id)
+        return_info = qn.fanqie_n(page_url, txt_encoding, ua, type_path_num, data_path, start_chapter_id)
     elif mode == 1:
         # 调用番茄调试模式函数
-        return_info = fd.fanqie_d(page_url, txt_encoding, ua, type_path_num, data_path, start_chapter_id)
+        return_info = qd.fanqie_d(page_url, txt_encoding, ua, type_path_num, data_path, start_chapter_id)
     elif mode == 2:
         # 调用番茄批量模式函数
-        return_info = fb.fanqie_b(txt_encoding, ua, type_path_num, data_path)
+        return_info = qb.fanqie_b(txt_encoding, ua, type_path_num, data_path)
     elif mode == 3:
         # 调用番茄分章模式函数
-        return_info = fc.fanqie_c(page_url, txt_encoding, ua, type_path_num, start_chapter_id)
+        return_info = qc.fanqie_c(page_url, txt_encoding, ua, type_path_num, start_chapter_id)
     elif mode == 4:
         # 调用番茄epub电子书模式函数
-        return_info = fe.fanqie_epub(page_url, ua, type_path_num)
+        return_info = qe.fanqie_epub(page_url, ua, type_path_num)
 
 
 # 检查更新
