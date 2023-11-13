@@ -35,28 +35,29 @@ import json
 from tqdm import tqdm
 import public as p
 from colorama import Fore, Style, init
+import asyncio
+
+# 设置镜像下载地址
+os.environ["PYPPETEER_DOWNLOAD_HOST"] = "https://mirrors.huaweicloud.com"
+from pyppeteer import launch  # noqa: E402
 
 init(autoreset=True)
 
 
 # 定义正常模式用来下载7猫小说的函数
-def qimao_epub(url, user_agent, path_choice):
-    headers = {
-        "User-Agent": user_agent
-    }
+def qimao_epub(url, path_choice):
+
+    html1, html2 = asyncio.run(get_html(url))
 
     # 创建epub电子书
     book = epub.EpubBook()
 
-    # 获取网页源码
-    response = requests.get(url, headers=headers)
-    html = response.text
-
     # 解析网页源码
-    soup = BeautifulSoup(html, "html.parser")
+    soup1 = BeautifulSoup(html1, "html.parser")
+    soup2 = BeautifulSoup(html2, "html.parser")
 
     # 获取小说标题
-    title = soup.find("h1").get_text()
+    title = soup1.find('div', {'class': 'title clearfix'}).find('span', {'class': 'txt'}).text
     # , class_ = "info-name"
     # 替换非法字符
     title = p.rename(title)
@@ -65,19 +66,15 @@ def qimao_epub(url, user_agent, path_choice):
     # info = soup.find("div", class_="page-header-info").get_text()
 
     # 获取小说简介
-    intro = soup.find("div", class_="page-abstract-content").get_text()
+    intro = soup1.find('p', class_='intro').get_text().replace(' ', '\n')
 
     # 获取小说作者
-    author_name = soup.find('span', class_='author-name-text').get_text()
+    author_name = soup1.find('div', {'class': 'sub-title'}).find('a').text.strip()
 
-    # 找到type="application/ld+json"的<script>标签
-    script_tag = soup.find('script', type='application/ld+json')
-
-    # 提取每个<script>标签中的JSON数据
-    json_data = json.loads(script_tag.string)
-    images_data = json_data.get('image', [])
-    # 打印提取出的images数据
-    img_url = images_data[0]
+    # 获取封面链接
+    img_div = soup1.find('div', {'class': 'wrap-pic'})
+    img = img_div.find('img')
+    img_url = img['src']
 
     # 下载封面
     response = requests.get(img_url)
@@ -101,7 +98,7 @@ def qimao_epub(url, user_agent, path_choice):
     book.add_metadata('DC', 'description', intro)
 
     # 获取卷标
-    page_directory_content = soup.find('div', class_='page-directory-content')
+    page_directory_content = soup1.find('div', class_='page-directory-content')
     nested_divs = page_directory_content.find_all('div', recursive=False)
 
     # intro chapter
@@ -258,3 +255,40 @@ def qimao_epub(url, user_agent, path_choice):
 
     print("文件已保存！")
     return
+
+
+async def get_html(url):
+
+    # 创建一个Pyppeteer的Browser实例
+    browser = await launch()
+
+    # 创建一个新的页面
+    page = await browser.newPage()
+
+    # 访问网页
+    await page.goto(url)
+
+    # 等待加载完成
+    await page.waitForSelector('.tab-inner')
+
+    # 获取切换前小说信息
+    html1 = await page.content()
+
+    # 模拟点击目录按钮，切换网页内容
+    # 在页面上执行JavaScript代码，模拟点击目录
+    await page.evaluate('''() => {
+            var elements = document.getElementsByClassName('tab-inner');
+            for(var i=0; i<elements.length; i++){
+                elements[i].click();
+            }
+        }''')
+
+    # 等待页面加载
+    await asyncio.sleep(1)
+
+    # 获取网页源代码
+    html2 = await page.content()
+
+    await browser.close()
+
+    return html1, html2
