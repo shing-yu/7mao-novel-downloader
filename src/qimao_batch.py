@@ -99,7 +99,7 @@ def qimao_b(encoding, user_agent, path_choice, data_folder):
         return f"发生错误：{str(e)}"
 
 
-# 定义批量模式用来下载番茄小说的函数
+# 定义批量模式用来下载7猫小说的函数
 def download_novels(url, encoding, user_agent, path_choice, folder_path, data_folder):
 
     book_id = re.search(r"/(\d+)/", url).group(1)

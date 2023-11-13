@@ -154,7 +154,7 @@ gitee地址:https://gitee.com/xingyv1024/7mao-novel-downloader
         elif choice == '7':
             clear_screen()
             print("您已进入更新模式")
-            # 调用番茄更新函数
+            # 调用7猫更新函数
             return_info = qu.qimao_update(ua, data_path)
             return
         elif choice == '8':
@@ -336,19 +336,19 @@ def perform_user_mode_action():
     global return_info
     # 判断用户处于什么模式
     if mode == 0:
-        # 调用番茄正常模式函数
+        # 调用7猫正常模式函数
         return_info = qn.qimao_n(page_url, txt_encoding, ua, type_path_num, data_path, start_chapter_id)
     elif mode == 1:
-        # 调用番茄调试模式函数
+        # 调用7猫调试模式函数
         return_info = qd.qimao_d(page_url, txt_encoding, ua, type_path_num, data_path, start_chapter_id)
     elif mode == 2:
-        # 调用番茄批量模式函数
+        # 调用7猫批量模式函数
         return_info = qb.qimao_b(txt_encoding, ua, type_path_num, data_path)
     elif mode == 3:
-        # 调用番茄分章模式函数
+        # 调用7猫分章模式函数
         return_info = qc.qimao_c(page_url, txt_encoding, ua, type_path_num, start_chapter_id)
     elif mode == 4:
-        # 调用番茄epub电子书模式函数
+        # 调用7猫epub电子书模式函数
         return_info = qe.qimao_epub(page_url, ua, type_path_num)
 
 

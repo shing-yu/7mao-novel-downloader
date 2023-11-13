@@ -35,7 +35,7 @@ from get_bookinfo import get_book_info
 init(autoreset=True)
 
 
-# 定义番茄更新函数
+# 定义7猫更新函数
 def qimao_update(user_agent, data_folder):
 
     # 请用户选择更新模式
@@ -146,7 +146,7 @@ def qimao_update(user_agent, data_folder):
         print("没有可更新的文件")
 
 
-# 定义更新番茄小说的函数
+# 定义更新7猫小说的函数
 def download_novel(url, encoding, user_agent, start_chapter_id, txt_file_path):
 
     book_id = re.search(r"/(\d+)/", url).group(1)

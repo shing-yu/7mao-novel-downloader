@@ -31,7 +31,7 @@ import time
 import public as p
 
 
-# 定义正常模式用来下载番茄小说的函数
+# 定义正常模式用来下载7猫小说的函数
 def fanqie_l(url, encoding, return_dict):
     try:
         ua = (
