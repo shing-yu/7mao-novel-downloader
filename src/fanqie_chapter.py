@@ -20,52 +20,36 @@ https://www.gnu.org/licenses/gpl-3.0.html
 无论您对程序进行了任何操作，请始终保留此信息。
 """
 
-# TODO: 实现分章模式下载代码
 
 # 导入必要的模块
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
 import re
 import os
 import time
 from tqdm import tqdm
 import public as p
 from colorama import Fore, Style, init
+import asyncio
+import hashlib
+from debug_bookinfo import get_book_info
 
 init(autoreset=True)
 
 
 # 定义分章节保存模式用来下载番茄小说的函数
 def fanqie_c(url, encoding, user_agent, path_choice, start_chapter_id):
+    book_id = re.search(r"/(\d+)/", url).group(1)
 
-    headers = {
-        "User-Agent": user_agent
-    }
-
-    # 获取网页源码
-    response = requests.get(url, headers=headers)
-    html = response.text
-
-    # 解析网页源码
-    soup = BeautifulSoup(html, "html.parser")
-
-    # 获取小说标题
-    title = soup.find("h1").get_text()
-    # , class_ = "info-name"
-
-    # 替换非法字符
-    title = p.rename(title)
+    # 调用异步函数获取7猫信息（模拟浏览器）
+    book_info = asyncio.run(get_book_info(url))
+    title = book_info['title']
+    info = book_info['info']
+    intro = book_info['intro']
+    chapters = book_info['chapters']
 
     # 获取保存路径
     book_folder = get_folder_path(path_choice, title)
     # 创建保存文件夹
     os.makedirs(book_folder, exist_ok=True)
-    # 获取小说信息
-    info = soup.find("div", class_="page-header-info").get_text()
-
-    # 获取小说简介
-    intro = soup.find("div", class_="page-abstract-content").get_text()
 
     # 拼接小说内容字符串
     introduction = f"""使用 @星隅(xing-yv) 所作开源工具下载
@@ -80,9 +64,6 @@ Gitee:https://gitee.com/xingyv1024/fanqie-novel-download/
     # 转换简介内容格式
     introduction_data = introduction.encode(encoding, errors='ignore')
 
-    # 获取所有章节链接
-    chapters = soup.find_all("div", class_="chapter-item")
-
     # 定义简介路径
     introduction_use = False
     introduction_path = None
@@ -94,8 +75,8 @@ Gitee:https://gitee.com/xingyv1024/fanqie-novel-download/
     else:
         # 找到起始章节的索引
         for i, chapter in enumerate(chapters):
-            chapter_url_tmp = urljoin(url, chapter.find("a")["href"])
-            chapter_id_tmp = re.search(r"/(\d+)", chapter_url_tmp).group(1)
+            chapter_url_tmp = chapter.find("a")["href"]  # 已删除不必要的urljoin
+            chapter_id_tmp = re.search(r"/(\d+)-(\d+)/", chapter_url_tmp).group(2)
             if chapter_id_tmp == start_chapter_id:  # 将 开始索引设置为用户的值
                 start_index = i
 
@@ -104,41 +85,35 @@ Gitee:https://gitee.com/xingyv1024/fanqie-novel-download/
 
         time.sleep(0.25)
         # 获取章节标题
-        chapter_title = chapter.find("a").get_text()
-
-        # 替换非法字符
-        chapter_title = p.rename(chapter_title)
+        chapter_title = chapter.find("span", {"class": "txt"}).get_text().strip()
 
         # 获取章节网址
-        chapter_url = urljoin(url, chapter.find("a")["href"])
+        chapter_url = chapter.find("a")["href"]
 
         # 获取章节 id
-        chapter_id = re.search(r"/(\d+)", chapter_url).group(1)
+        chapter_id = re.search(r"/(\d+)-(\d+)/", chapter_url).group(2)
 
-        # 构造 api 网址
-        api_url = (f"https://novel.snssdk.com/api/novel/book/reader/full/v1/?device_platform=android&"
-                   f"parent_enterfrom=novel_channel_search.tab.&aid=2329&platform_id=1&group_id="
-                   f"{chapter_id}&item_id={chapter_id}")
         # 尝试获取章节内容
         chapter_content = None
         retry_count = 1
         while retry_count < 4:  # 设置最大重试次数
             try:
-                # 获取 api 响应
-                api_response = requests.get(api_url, headers=headers)
-
-                # 解析 api 响应为 json 数据
-                api_data = api_response.json()
+                param_string = f"chapterId={chapter_id}id={book_id}{p.sign_key}"
+                sign = hashlib.md5(param_string.encode()).hexdigest()
+                encrypted_content = p.get_qimao(book_id, chapter_id, sign)
             except Exception as e:
+
+                tqdm.write(Fore.RED + Style.BRIGHT + f"发生异常: {e}")
                 if retry_count == 1:
-                    tqdm.write(Fore.RED + Style.BRIGHT + f"发生异常: {e}")
                     tqdm.write(f"{chapter_title} 获取失败，正在尝试重试...")
                 tqdm.write(f"第 ({retry_count}/3) 次重试获取章节内容")
                 retry_count += 1  # 否则重试
                 continue
 
-            if "data" in api_data and "content" in api_data["data"]:
-                chapter_content = api_data["data"]["content"]
+            if "data" in encrypted_content and "content" in encrypted_content["data"]:
+                encrypted_content = encrypted_content['data']['content']
+                chapter_content = p.decrypt_qimao(encrypted_content)
+                chapter_content = re.sub('<br>', '\n', chapter_content)
                 break  # 如果成功获取章节内容，跳出重试循环
             else:
                 if retry_count == 1:
@@ -150,20 +125,8 @@ Gitee:https://gitee.com/xingyv1024/fanqie-novel-download/
             tqdm.write(f"无法获取章节内容: {chapter_title}，跳过。")
             continue  # 重试次数过多后，跳过当前章节
 
-        # 提取文章标签中的文本
-        chapter_text = re.search(r"<article>([\s\S]*?)</article>", chapter_content).group(1)
-
-        # 将 <p> 标签替换为换行符
-        chapter_text = re.sub(r"<p>", "\n", chapter_text)
-
-        # 去除其他 html 标签
-        chapter_text = re.sub(r"</?\w+>", "", chapter_text)
-
-        # 针对性去除所有 出版物 所携带的标签
-        chapter_text = p.fix_publisher(chapter_text)
-
         # 在章节内容字符串中添加章节标题和内容
-        content_all = f"{chapter_title}\n{chapter_text}"
+        content_all = f"{chapter_title}\n{chapter_content}"
 
         # 转换章节内容格式
         data = content_all.encode(encoding, errors='ignore')
