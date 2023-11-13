@@ -36,7 +36,7 @@ init(autoreset=True)
 
 
 # 定义7猫更新函数
-def qimao_update(user_agent, data_folder):
+def qimao_update(data_folder):
 
     # 请用户选择更新模式
     while True:
@@ -44,7 +44,7 @@ def qimao_update(user_agent, data_folder):
         if not update_mode:
             update_mode = '1'
         if update_mode == '1':
-            onefile(user_agent, data_folder)
+            onefile(data_folder)
             return
         elif update_mode == '2':
             break
@@ -125,7 +125,7 @@ def qimao_update(user_agent, data_folder):
                 else:
                     print(Fore.GREEN + Style.BRIGHT + "hash校验通过！")
             print(f"上次更新时间{last_update_time}")
-            result = download_novel(url, encoding, user_agent, last_chapter_id, txt_file_path)
+            result = download_novel(url, encoding, last_chapter_id, txt_file_path)
             if result == "DN":
                 print(f"{novel_name} 已是最新，不需要更新。\n")
             else:
@@ -147,7 +147,7 @@ def qimao_update(user_agent, data_folder):
 
 
 # 定义更新7猫小说的函数
-def download_novel(url, encoding, user_agent, start_chapter_id, txt_file_path):
+def download_novel(url, encoding, start_chapter_id, txt_file_path):
 
     book_id = re.search(r"/(\d+)/", url).group(1)
 
@@ -236,7 +236,7 @@ def download_novel(url, encoding, user_agent, start_chapter_id, txt_file_path):
     return last_chapter_id
 
 
-def onefile(user_agent, data_folder):
+def onefile(data_folder):
 
     txt_file_path = None
     while True:
@@ -303,7 +303,7 @@ def onefile(user_agent, data_folder):
         else:
             print(Fore.GREEN + Style.BRIGHT + "hash校验通过！")
         print(f"上次更新时间{last_update_time}")
-        result = download_novel(url, encoding, user_agent, last_chapter_id, txt_file_path)
+        result = download_novel(url, encoding, last_chapter_id, txt_file_path)
         if result == "DN":
             print(f"{novel_name} 已是最新，不需要更新。\n")
         else:

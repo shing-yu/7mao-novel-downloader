@@ -36,7 +36,7 @@ init(autoreset=True)
 
 
 # 定义分章节保存模式用来下载7猫小说的函数
-def qimao_c(url, encoding, user_agent, path_choice, start_chapter_id):
+def qimao_c(url, encoding, path_choice, start_chapter_id):
     book_id = re.search(r"/(\d+)/", url).group(1)
 
     # 调用异步函数获取7猫信息（模拟浏览器）

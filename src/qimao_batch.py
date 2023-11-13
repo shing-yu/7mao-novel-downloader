@@ -36,7 +36,7 @@ from get_bookinfo import get_book_info
 init(autoreset=True)
 
 
-def qimao_b(encoding, user_agent, path_choice, data_folder):
+def qimao_b(encoding, path_choice, data_folder):
 
     if not os.path.exists("urls.txt"):
         print("url.txt文件不存在")
@@ -91,7 +91,7 @@ def qimao_b(encoding, user_agent, path_choice, data_folder):
         for url in lines:
             url = url.strip()  # 移除行尾的换行符
             if url:  # 如果url不为空（即，跳过空行）
-                download_novels(url, encoding, user_agent, path_choice, folder_path, data_folder)
+                download_novels(url, encoding, path_choice, folder_path, data_folder)
                 time.sleep(1)
 
     except Exception as e:
@@ -100,7 +100,7 @@ def qimao_b(encoding, user_agent, path_choice, data_folder):
 
 
 # 定义批量模式用来下载7猫小说的函数
-def download_novels(url, encoding, user_agent, path_choice, folder_path, data_folder):
+def download_novels(url, encoding, path_choice, folder_path, data_folder):
 
     book_id = re.search(r"/(\d+)/", url).group(1)
 
