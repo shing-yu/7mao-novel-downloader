@@ -143,10 +143,10 @@ https://www.gnu.org/licenses/gpl-3.0.html
 请在使用本程序之前确保遵守相关法律法规和网站的使用政策，如有疑问，请咨询法律顾问。
 
 ibxff所作用户脚本:https://greasyfork.org/zh-CN/scripts/476688
-开源仓库地址:https://github.com/xing-yv/fanqie-novel-download
-gitee地址:https://gitee.com/xingyv1024/fanqie-novel-download
+开源仓库地址:https://github.com/xing-yv/7mao-novel-downloader
+gitee地址:https://gitee.com/xingyv1024/7mao-novel-downloader
 作者B站主页:https://space.bilibili.com/1920711824
-提出反馈:https://github.com/xing-yv/fanqie-novel-download/issues/new
+提出反馈:https://github.com/xing-yv/7mao-novel-downloader/issues/new
 (请在右侧Label处选择issue类型以得到更快回复)
 """)
             input("按Enter键返回...")
@@ -159,7 +159,7 @@ gitee地址:https://gitee.com/xingyv1024/fanqie-novel-download
             return
         elif choice == '8':
             clear_screen()
-            contributors_url = 'https://gitee.com/xingyv1024/fanqie-novel-download/raw/main/CONTRIBUTORS.md'
+            contributors_url = 'https://gitee.com/xingyv1024/7mao-novel-downloader/raw/main/CONTRIBUTORS.md'
             try:
                 contributors = requests.get(contributors_url)
 
@@ -355,7 +355,7 @@ def perform_user_mode_action():
 # 检查更新
 def check_update(now_version):
     owner = "xingyv1024"
-    repo = "fanqie-novel-download"
+    repo = "7mao-novel-downloader"
     api_url = f"https://gitee.com/api/v5/repos/{owner}/{repo}/releases/latest"
 
     print("正在检查更新...")
@@ -383,7 +383,7 @@ def check_update(now_version):
             print(f"最新的发行版是：{latest_version}")
             result = compare_versions(now_version, latest_version)
             if result == -1:
-                print("检测到新版本\n更新可用！请到 https://gitee.com/xingyv1024/fanqie-novel-download/releases 下载最新版")
+                print("检测到新版本\n更新可用！请到 https://gitee.com/xingyv1024/7mao-novel-downloader/releases 下载最新版")
                 print(f"更新内容:\n{release_describe}")
                 input("按Enter键继续...\n")
             else:
