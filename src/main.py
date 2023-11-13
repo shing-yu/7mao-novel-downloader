@@ -23,7 +23,7 @@ https://www.gnu.org/licenses/gpl-3.0.html
 import function as f
 from sys import exit
 
-version = "v0.1.1-dev.1"
+version = "v1.0.0-alpha.1"
 
 # 检查更新
 f.check_update(version)
