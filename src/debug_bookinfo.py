@@ -7,7 +7,7 @@ from bs4 import BeautifulSoup
 import re
 # 更换阿里源下载chromium
 # chromium_downloader.BASE_URL = 'http://mirrors.huaweicloud.com/chromium-browser-snapshots/'
-
+# TODO: 实现DEBUG模式的书籍信息获取代码
 
 async def main():
     # 创建一个Pyppeteer的Browser实例
