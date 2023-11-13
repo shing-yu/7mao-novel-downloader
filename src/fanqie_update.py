@@ -21,16 +21,16 @@ https://www.gnu.org/licenses/gpl-3.0.html
 """
 
 # 导入必要的模块
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
-import datetime
+import asyncio
 import re
 import os
+import time
+import datetime
 from tqdm import tqdm
 import hashlib
 import public as p
 from colorama import Fore, Style, init
+from get_bookinfo import get_book_info
 
 init(autoreset=True)
 
@@ -149,26 +149,18 @@ def fanqie_update(user_agent, data_folder):
 # 定义更新番茄小说的函数
 def download_novel(url, encoding, user_agent, start_chapter_id, txt_file_path):
 
-    headers = {
-        "User-Agent": user_agent
-    }
+    book_id = re.search(r"/(\d+)/", url).group(1)
 
-    # 获取网页源码
-    response = requests.get(url, headers=headers)
-    html = response.text
-
-    # 解析网页源码
-    soup = BeautifulSoup(html, "html.parser")
-
-    # 获取所有章节链接
-    chapters = soup.find_all("div", class_="chapter-item")
+    # 调用异步函数获取7猫信息（模拟浏览器）
+    book_info = asyncio.run(get_book_info(url))
+    chapters = book_info['chapters']
 
     last_chapter_id = None
     # 找到起始章节的索引
     start_index = 0
     for i, chapter in enumerate(chapters):
-        chapter_url_tmp = urljoin(url, chapter.find("a")["href"])
-        chapter_id_tmp = re.search(r"/(\d+)", chapter_url_tmp).group(1)
+        chapter_url_tmp = chapter.find("a")["href"]  # 已删除不必要的urljoin
+        chapter_id_tmp = re.search(r"/(\d+)-(\d+)/", chapter_url_tmp).group(2)
         if chapter_id_tmp == start_chapter_id:  # 更新函数，所以前进一个章节
             start_index = i + 1
         last_chapter_id = chapter_id_tmp
@@ -181,39 +173,37 @@ def download_novel(url, encoding, user_agent, start_chapter_id, txt_file_path):
     with open(txt_file_path, 'ab') as f:
         # 从起始章节开始遍历每个章节链接
         for chapter in tqdm(chapters[start_index:]):
+            time.sleep(0.25)
             # 获取章节标题
-            chapter_title = chapter.find("a").get_text()
+            chapter_title = chapter.find("span", {"class": "txt"}).get_text().strip()
 
             # 获取章节网址
-            chapter_url = urljoin(url, chapter.find("a")["href"])
+            chapter_url = chapter.find("a")["href"]
 
             # 获取章节 id
-            chapter_id = re.search(r"/(\d+)", chapter_url).group(1)
+            chapter_id = re.search(r"/(\d+)-(\d+)/", chapter_url).group(2)
 
-            # 构造 api 网址
-            api_url = (f"https://novel.snssdk.com/api/novel/book/reader/full/v1/?device_platform=android&"
-                       f"parent_enterfrom=novel_channel_search.tab.&aid=2329&platform_id=1&group_id="
-                       f"{chapter_id}&item_id={chapter_id}")
             # 尝试获取章节内容
             chapter_content = None
             retry_count = 1
             while retry_count < 4:  # 设置最大重试次数
                 try:
-                    # 获取 api 响应
-                    api_response = requests.get(api_url, headers=headers)
-
-                    # 解析 api 响应为 json 数据
-                    api_data = api_response.json()
+                    param_string = f"chapterId={chapter_id}id={book_id}{p.sign_key}"
+                    sign = hashlib.md5(param_string.encode()).hexdigest()
+                    encrypted_content = p.get_qimao(book_id, chapter_id, sign)
                 except Exception as e:
+
+                    tqdm.write(Fore.RED + Style.BRIGHT + f"发生异常: {e}")
                     if retry_count == 1:
-                        tqdm.write(Fore.RED + Style.BRIGHT + f"发生异常: {e}")
                         tqdm.write(f"{chapter_title} 获取失败，正在尝试重试...")
                     tqdm.write(f"第 ({retry_count}/3) 次重试获取章节内容")
                     retry_count += 1  # 否则重试
                     continue
 
-                if "data" in api_data and "content" in api_data["data"]:
-                    chapter_content = api_data["data"]["content"]
+                if "data" in encrypted_content and "content" in encrypted_content["data"]:
+                    encrypted_content = encrypted_content['data']['content']
+                    chapter_content = p.decrypt_qimao(encrypted_content)
+                    chapter_content = re.sub('<br>', '\n', chapter_content)
                     break  # 如果成功获取章节内容，跳出重试循环
                 else:
                     if retry_count == 1:
@@ -225,19 +215,13 @@ def download_novel(url, encoding, user_agent, start_chapter_id, txt_file_path):
                 tqdm.write(f"无法获取章节内容: {chapter_title}，跳过。")
                 continue  # 重试次数过多后，跳过当前章节
 
-            # 提取文章标签中的文本
-            chapter_text = re.search(r"<article>([\s\S]*?)</article>", chapter_content).group(1)
-
-            # 将 <p> 标签替换为换行符
-            chapter_text = re.sub(r"<p>", "\n", chapter_text)
-
             # 去除其他 html 标签
-            chapter_text = re.sub(r"</?\w+>", "", chapter_text)
-
-            chapter_text = p.fix_publisher(chapter_text)
+            # chapter_text = re.sub(r"</?\w+>", "", chapter_text)
+            #
+            # chapter_text = p.fix_publisher(chapter_text)
 
             # 在小说内容字符串中添加章节标题和内容
-            content = f"\n\n\n{chapter_title}\n{chapter_text}"
+            content = f"\n\n\n{chapter_title}\n\n{chapter_content}"
 
             # 根据编码转换小说内容字符串为二进制数据
             data = content.encode(encoding, errors='ignore')
@@ -298,32 +282,26 @@ def onefile(user_agent, data_folder):
         url = lines[1].strip()
         last_chapter_id = lines[2].strip()
         encoding = lines[3].strip()
-        if len(lines) >= 5:
-            save_sha256 = lines[4].strip()
-            skip_hash = 0
-        else:
-            print(Fore.YELLOW + Style.BRIGHT + "此小说可能由老版本下载，跳过hash校验")
-            save_sha256 = None
-            skip_hash = 1
+        save_sha256 = lines[4].strip()
         hash_sha256 = hashlib.sha256()
         with open(txt_file_path, "rb") as f:
             for chunk in iter(lambda: f.read(4096), b""):
                 hash_sha256.update(chunk)
         fact_sha256 = hash_sha256.hexdigest()
-        if skip_hash == 0:
-            if fact_sha256 != save_sha256:
-                print(Fore.RED + Style.BRIGHT + "hash校验未通过！")
-                while True:
-                    upd_choice = input(f"这往往意味着文件已被修改，是否继续更新？(yes/no):")
-                    if upd_choice == "yes":
-                        break
-                    elif upd_choice == "no":
-                        print(Fore.RED + Style.BRIGHT + "更新已取消")
-                        return
-                    else:
-                        print("输入错误，请重新输入")
-            else:
-                print(Fore.GREEN + Style.BRIGHT + "hash校验通过！")
+
+        if fact_sha256 != save_sha256:
+            print(Fore.RED + Style.BRIGHT + "hash校验未通过！")
+            while True:
+                upd_choice = input(f"这往往意味着文件已被修改，是否继续更新？(yes/no):")
+                if upd_choice == "yes":
+                    break
+                elif upd_choice == "no":
+                    print(Fore.RED + Style.BRIGHT + "更新已取消")
+                    return
+                else:
+                    print("输入错误，请重新输入")
+        else:
+            print(Fore.GREEN + Style.BRIGHT + "hash校验通过！")
         print(f"上次更新时间{last_update_time}")
         result = download_novel(url, encoding, user_agent, last_chapter_id, txt_file_path)
         if result == "DN":
