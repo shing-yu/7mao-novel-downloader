@@ -1,38 +1,61 @@
+
+# 开发者注意:
+# 七猫网页在点击类名为：tab-inner 的”作品目录“按钮后
+# 才会显示目录内容
+
 import asyncio
-from pyppeteer import launch
-# from pyppeteer import chromium_downloader
+import os
 import public as p
-# import requests
 from bs4 import BeautifulSoup
 import re
-# 更换阿里源下载chromium
-# chromium_downloader.BASE_URL = 'http://mirrors.huaweicloud.com/chromium-browser-snapshots/'
-# TODO: 实现DEBUG模式的书籍信息获取代码
+from colorama import Fore, Style, init
+init(autoreset=True)
 
-async def main():
+# 设置镜像下载地址
+os.environ["PYPPETEER_DOWNLOAD_HOST"] = "https://mirrors.huaweicloud.com"
+from pyppeteer import launch  # noqa: E402
+
+
+async def get_book_info(url):
     # 创建一个Pyppeteer的Browser实例
     browser = await launch()
 
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]已创建浏览器实例")
+
     # 创建一个新的页面
     page = await browser.newPage()
+    await page.setViewport({'width': 1920, 'height': 1080})  # 设置窗口大小
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]窗口大小1920x1080")
 
     # 访问网页
-    url = 'https://www.qimao.com/shuku/222767/'  # 请替换为你需要爬取的网页URL
-    await page.goto(url)
-    await asyncio.sleep(5)
+    response = await page.goto(url)
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]HTTP状态码: {response.status}")
 
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]正在访问网页")
+
+    # 等待加载完成
     await page.waitForSelector('.tab-inner')
 
-    # 获取页面截图
-    screenshot2 = await page.screenshot()
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]网页已加载完成")
+    await page.screenshot({'path': '111.png'})  # 截屏并保存
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]截图已保存至111.png")
 
-    # 将截图数据写入到文件中
-    with open('screenshot2.png', 'wb') as f:
-        f.write(screenshot2)
+# ==================== 获取简介 ====================
 
-    # # 在这里添加你的点击操作
-    # await page.click('.tab-inner')
-    # 在页面上执行JavaScript代码
+    # 在获取目录前，先获取小说简介
+    html = await page.content()
+    soup = BeautifulSoup(html, "html.parser")
+    intro = soup.find('p', class_='intro').get_text().replace(' ', '\n')
+
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]已获取小说简介")
+
+# ==================== 获取简介结束 ====================
+
+    # 模拟点击目录按钮，切换网页内容
+    # 在页面上执行JavaScript代码，模拟点击目录
+
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]运行JavaScript代码模拟点击")
+
     await page.evaluate('''() => {
         var elements = document.getElementsByClassName('tab-inner');
         for(var i=0; i<elements.length; i++){
@@ -41,32 +64,31 @@ async def main():
     }''')
 
     # 等待页面加载
-    # await page.waitForTimeout(5000)
-    await asyncio.sleep(5)
+    await asyncio.sleep(1)
 
-    # 获取页面截图
-    screenshot = await page.screenshot()
-
-    # 将截图数据写入到文件中
-    with open('screenshot.png', 'wb') as f:
-        f.write(screenshot)
+    await page.screenshot({'path': '222.png'})  # 截屏并保存
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]截图已保存至222.png")
 
     # 获取网页源代码
     html = await page.content()
 
-    print(str(html))
-
-    # 你可以在这里使用BeautifulSoup解析html，获取你需要的数据
     # 解析网页源码
     soup = BeautifulSoup(html, "html.parser")
+
+# ==================== 获取标题 ====================
 
     # 获取小说标题
     title = soup.find('div', {'class': 'title clearfix'}).find('span', {'class': 'txt'}).text
     # , class_ = "info-name"
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]已获取小说标题")
     # 替换非法字符
     title = p.rename(title)
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]已尝试替换非法字符")
 
-    # print(title)
+# ==================== 获取标题结束 ====================
+
+# ==================== 获取信息 ====================
+
     info_div = soup.find('div', class_='wrap-txt')
 
     # 在每个div标签中，找到类为'btns-wrap clearfix'的div标签
@@ -83,25 +105,19 @@ async def main():
     info_text = re.sub(r'\s+', ' ', info_text)
 
     info = info_text + '\n'
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]已获取小说信息")
 
-    # print(info)
+# ==================== 获取信息结束 ====================
 
-    # intro = soup.find('p', class_='intro').get_text().replace(' ', '\n')
-    # print(intro)
-
-    # 使用正则表达式匹配类名
-    # pattern = re.compile('clearfix ref-catalog-li.*')
-    # clearfix ref-catalog-li-16480917400001
-    # li_tags = soup.find_all('li', {'class': pattern})
-    li_tags = soup.select('li[class^="clearfix ref-catalog-li-"]')
-    print("目录标签数" + str(len(li_tags)))
-
-    # 打印匹配到的li标签
-    # for li in li_tags:
-    #     print(str(li))
+    # 匹配类名，找出目录标签，获取目录列表
+    chapters = soup.select('li[class^="clearfix ref-catalog-li-"]')
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]已获取目录列表")
 
     # 关闭Browser实例
     await browser.close()
+    print(Fore.YELLOW + Style.BRIGHT + f"[DEBUG]已关闭浏览器实例")
+
+    return {'intro': intro, 'title': title, 'info': info, 'chapters': chapters}
 
 # 运行异步任务
-asyncio.run(main())
+# asyncio.run(main())
