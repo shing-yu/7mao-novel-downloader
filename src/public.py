@@ -102,3 +102,6 @@ def get_qimao(book_id, chapter_id, sign):
                             f"id={book_id}&chapterId={chapter_id}&sign={sign}",
                             headers=headers)
     return response.json()
+
+
+sign_key = 'd3dGiJc651gSQ8w1'
