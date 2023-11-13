@@ -4,6 +4,8 @@ packaging
 ebooklib
 tqdm
 colorama
+pycryptodome
+pyppeteer
 
 # api版本
 flask

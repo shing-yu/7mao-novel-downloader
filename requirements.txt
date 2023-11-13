@@ -5,3 +5,4 @@ ebooklib
 tqdm
 colorama
 pycryptodome
+pyppeteer
