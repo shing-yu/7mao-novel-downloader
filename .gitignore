@@ -21,3 +21,5 @@ build/
 .pytest_cache/
 # 忽略编译文件
 .mypy_cache/
+# 忽略测试文件
+src/test.py
