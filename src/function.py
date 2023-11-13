@@ -123,7 +123,7 @@ def start():
             clear_screen()
             # print("您已进入EPUB模式，将保留一定的小说格式。\n")
             print("EPUB模式正在开发中，敬请期待\n")
-            break
+            # break
         elif choice == '6':
             clear_screen()
             print("""作者：星隅（xing-yv）
