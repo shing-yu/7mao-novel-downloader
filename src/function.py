@@ -41,7 +41,6 @@ init(autoreset=True)
 mode = None
 page_url = None
 txt_encoding = None
-ua = None
 type_path_num = None
 return_info = None
 user_folder = os.path.expanduser("~")
@@ -87,7 +86,7 @@ def start():
         print("2. 同意并进入自动批量模式")
         print("3. 同意并进入分章保存模式(测试)")
         print("4. 同意并进入Debug模式")
-        print("5. 同意并进入Epub电子书模式(开发中)")
+        print("5. 同意并进入Epub电子书模式(测试)")
         print("6. 查看更多")
         print("7. 更新已下载的小说")
         print("8. 查看贡献（赞助）者名单")
@@ -116,7 +115,7 @@ def start():
         elif choice == '4':
             mode = 1
             clear_screen()
-            print("您已进入Debug模式，将会给出更多选项和调试信息。\n")
+            print("您已进入Debug模式，将会给出更多调试信息。\n")
             break
         elif choice == '5':
             mode = 4
@@ -202,7 +201,6 @@ gitee地址:https://gitee.com/xingyv1024/7mao-novel-downloader
 def get_parameter(retry):
     global page_url
     global txt_encoding
-    global ua
     global type_path_num
     global book_id
     global start_chapter_id
@@ -243,8 +241,10 @@ def get_parameter(retry):
             # 当用户按下Ctrl+C是，可以自定义起始章节id
             except KeyboardInterrupt:
                 while True:
-                    start_chapter_id = input("您已按下Ctrl+C，请输入起始章节的id\n(输入help以查看帮助，"
-                                             "epub电子书模式不支持起始章节，再次按下Ctrl+C以强制关闭程序):\n")
+                    if mode == 4:
+                        input("epub模式不支持指定开始章节id，请按Enter继续，或按Ctrl+C退出程序...")
+                        break
+                    start_chapter_id = input("您已按下Ctrl+C，请输入起始章节的id(输入help以查看帮助):\n")
                     if start_chapter_id == 'help':
                         print("\n打开小说章节阅读界面，上方链接中的数字即为章节id\n请输入您想要开始下载的章节的id\n")
                         continue
@@ -274,30 +274,6 @@ def get_parameter(retry):
 
     if mode != 4:
         print(f"你选择的保存编码是：{txt_encoding}")
-
-    # 初始化“ua”
-    ua = (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/118.0.0.0 "
-        "Safari/537.36"
-    )
-
-    # 定义 User-Agent
-    if mode == 1:  # 判断用户是否处于调试模式
-        while True:
-            ua_choice = input("是否自行输入User-Agent？(yes/no)(默认:no): ")
-            if not ua_choice:
-                ua_choice = "no"
-            # 是则询问是否自定义ua
-            if ua_choice.lower() == "yes":
-                ua = input("请输入自定义的User-Agent: \n")
-                break
-            elif ua_choice.lower() == "no":
-                break
-            else:
-                print("输入无效，请重新输入。")
-                continue
 
     type_path_num = None
 
