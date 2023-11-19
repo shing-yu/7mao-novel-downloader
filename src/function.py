@@ -121,9 +121,9 @@ def start():
         elif choice == '5':
             mode = 4
             clear_screen()
-            # print("您已进入EPUB模式，将保留一定的小说格式。\n")
-            print("EPUB模式正在开发中，敬请期待\n")
-            # break
+            print("您已进入EPUB模式，将输出epub电子书文件。\n")
+            # print("EPUB模式正在开发中，敬请期待\n")
+            break
         elif choice == '6':
             clear_screen()
             print("""作者：星隅（xing-yv）
@@ -350,7 +350,7 @@ def perform_user_mode_action():
         return_info = qc.qimao_c(page_url, txt_encoding, type_path_num, start_chapter_id)
     elif mode == 4:
         # 调用7猫epub电子书模式函数
-        return_info = qe.qimao_epub(page_url, ua, type_path_num)
+        return_info = qe.qimao_epub(page_url, type_path_num)
 
 
 # 检查更新

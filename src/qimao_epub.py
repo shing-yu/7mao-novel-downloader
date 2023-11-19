@@ -20,7 +20,6 @@ https://www.gnu.org/licenses/gpl-3.0.html
 无论您对程序进行了任何操作，请始终保留此信息。
 """
 
-# TODO: 实现EPUB模式下载代码
 
 import os
 
@@ -31,11 +30,11 @@ from ebooklib import epub
 from urllib.parse import urljoin
 import re
 import time
-import json
 from tqdm import tqdm
 import public as p
 from colorama import Fore, Style, init
 import asyncio
+import hashlib
 
 # 设置镜像下载地址
 os.environ["PYPPETEER_DOWNLOAD_HOST"] = "https://mirrors.huaweicloud.com"
@@ -46,6 +45,7 @@ init(autoreset=True)
 
 # 定义正常模式用来下载7猫小说的函数
 def qimao_epub(url, path_choice):
+    book_id = re.search(r"/(\d+)/", url).group(1)
 
     html1, html2 = asyncio.run(get_html(url))
 
@@ -98,8 +98,9 @@ def qimao_epub(url, path_choice):
     book.add_metadata('DC', 'description', intro)
 
     # 获取卷标
-    page_directory_content = soup1.find('div', class_='page-directory-content')
-    nested_divs = page_directory_content.find_all('div', recursive=False)
+    # page_directory_content = soup1.find('div', class_='page-directory-content')
+    # nested_divs = page_directory_content.find_all('div', recursive=False)
+    nested_divs = soup2.find_all('span', class_='sub-tit')
 
     # intro chapter
     intro_e = epub.EpubHtml(title='Introduction', file_name='intro.xhtml', lang='hr')
@@ -120,11 +121,11 @@ def qimao_epub(url, path_choice):
         for div in nested_divs:
             first_chapter = None
             volume_id += 1
-            volume_div = div.find('div', class_='volume')
             # 提取 "卷名" 文本
-            volume_title = volume_div.text
+            volume_title = div.get_text()
             print(volume_title)
-            chapters = div.find_all("div", class_="chapter-item")
+            chapters = soup2.select('li[class^="clearfix ref-catalog-li-"]')
+
             start_index = None
             for i, chapter in enumerate(chapters):
                 chapter_url_tmp = urljoin(url, chapter.find("a")["href"])
@@ -141,39 +142,35 @@ def qimao_epub(url, path_choice):
                 chapter_id_name += 1
                 time.sleep(0.25)
                 # 获取章节标题
-                chapter_title = chapter.find("a").get_text()
+                chapter_title = chapter.find("span", {"class": "txt"}).get_text().strip()
 
                 # 获取章节网址
-                chapter_url = urljoin(url, chapter.find("a")["href"])
+                chapter_url = chapter.find("a")["href"]
 
                 # 获取章节 id
-                chapter_id = re.search(r"/(\d+)", chapter_url).group(1)
-
-                # 构造 api 网址
-                api_url = (f"https://novel.snssdk.com/api/novel/book/reader/full/v1/?device_platform=android&"
-                           f"parent_enterfrom=novel_channel_search.tab.&aid=2329&platform_id=1&group_id="
-                           f"{chapter_id}&item_id={chapter_id}")
+                chapter_id = re.search(r"/(\d+)-(\d+)/", chapter_url).group(2)
 
                 # 尝试获取章节内容
                 chapter_content = None
                 retry_count = 1
                 while retry_count < 4:  # 设置最大重试次数
                     try:
-                        # 获取 api 响应
-                        api_response = requests.get(api_url, headers=headers)
-
-                        # 解析 api 响应为 json 数据
-                        api_data = api_response.json()
+                        param_string = f"chapterId={chapter_id}id={book_id}{p.sign_key}"
+                        sign = hashlib.md5(param_string.encode()).hexdigest()
+                        encrypted_content = p.get_qimao(book_id, chapter_id, sign)
                     except Exception as e:
+
+                        tqdm.write(Fore.RED + Style.BRIGHT + f"发生异常: {e}")
                         if retry_count == 1:
-                            tqdm.write(Fore.RED + Style.BRIGHT + f"发生异常: {e}")
                             tqdm.write(f"{chapter_title} 获取失败，正在尝试重试...")
                         tqdm.write(f"第 ({retry_count}/3) 次重试获取章节内容")
                         retry_count += 1  # 否则重试
                         continue
 
-                    if "data" in api_data and "content" in api_data["data"]:
-                        chapter_content = api_data["data"]["content"]
+                    if "data" in encrypted_content and "content" in encrypted_content["data"]:
+                        encrypted_content = encrypted_content['data']['content']
+                        chapter_content = p.decrypt_qimao(encrypted_content)
+                        chapter_content = re.sub('<br>', '\n', chapter_content)
                         break  # 如果成功获取章节内容，跳出重试循环
                     else:
                         if retry_count == 1:
@@ -185,8 +182,10 @@ def qimao_epub(url, path_choice):
                     tqdm.write(f"无法获取章节内容: {chapter_title}，跳过。")
                     continue  # 重试次数过多后，跳过当前章节
 
-                # 提取文章标签中的文本
-                chapter_text = re.search(r"<article>([\s\S]*?)</article>", chapter_content).group(1)
+                # # 提取文章标签中的文本
+                # chapter_text = re.search(r"<article>([\s\S]*?)</article>", chapter_content).group(1)
+                chapter_text = f'{chapter_title}\n' + chapter_content
+                chapter_text = re.sub(r'\n', '</p><p>', chapter_text)
 
                 # 在小说内容字符串中添加章节标题和内容
                 text = epub.EpubHtml(title=chapter_title, file_name=f'chapter_{volume_id}_{chapter_id_name}.xhtml')
