@@ -246,7 +246,7 @@ def get_parameter(retry):
                         break
                     start_chapter_id = input("您已按下Ctrl+C，请输入起始章节的id(输入help以查看帮助):\n")
                     if start_chapter_id == 'help':
-                        print("\n打开小说章节阅读界面，上方链接中的数字即为章节id\n请输入您想要开始下载的章节的id\n")
+                        print("\n打开小说章节阅读界面，上方链接中第二串的数字即为章节id\n请输入您想要开始下载的章节的id\n")
                         continue
                     elif start_chapter_id.isdigit():
                         break
