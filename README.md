@@ -1,5 +1,6 @@
 # 7mao-novel-download
 七猫小说下载的Python实现。这是一个用于从七猫小说网站下载小说的Python程序。  
+**此项目是[fanqie-novel-download](https://github.com/xing-yv/fanqie-novel-download)的变体项目。**  
 它提供了一个简单的命令行界面，可以输入小说目录页面的URL并选择保存下载内容的编码格式。  
 本程序灵感即api均来源于ibxff所作用户脚本（MIT），你可以在[此处](https://greasyfork.org/zh-CN/scripts/479460)获取。  
 软件QQ2群（闲聊）：947392854  
@@ -8,6 +9,7 @@
 ## 特点
 
 - 从七猫网站下载小说。
+- 具有多种模式
 - 允许用户在保存文件时选择UTF-8和GB2312编码之间的编码格式。
 - 用户友好的命令行界面，具有提示和选项。
 - 支持保存txt、epub两种格式
