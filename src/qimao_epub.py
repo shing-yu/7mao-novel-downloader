@@ -27,7 +27,6 @@ import os
 import requests
 from bs4 import BeautifulSoup
 from ebooklib import epub
-from urllib.parse import urljoin
 import re
 import time
 from tqdm import tqdm
@@ -97,11 +96,6 @@ def qimao_epub(url, path_choice):
     book.add_author(author_name)
     book.add_metadata('DC', 'description', intro)
 
-    # 获取卷标
-    # page_directory_content = soup1.find('div', class_='page-directory-content')
-    # nested_divs = page_directory_content.find_all('div', recursive=False)
-    nested_divs = soup2.find_all('span', class_='sub-tit')
-
     # intro chapter
     intro_e = epub.EpubHtml(title='Introduction', file_name='intro.xhtml', lang='hr')
     intro_e.content = (f'<html><head></head><body>'
@@ -116,98 +110,79 @@ def qimao_epub(url, path_choice):
     book.spine = ['nav', intro_e]
 
     try:
-        volume_id = 0
-        # 遍历每个卷
-        for div in nested_divs:
-            first_chapter = None
-            volume_id += 1
-            # 提取 "卷名" 文本
-            volume_title = div.get_text()
-            print(volume_title)
-            chapters = soup2.select('li[class^="clearfix ref-catalog-li-"]')
+        chapters = soup2.select('li[class^="clearfix ref-catalog-li-"]')
 
-            start_index = None
-            for i, chapter in enumerate(chapters):
-                chapter_url_tmp = urljoin(url, chapter.find("a")["href"])
-                chapter_id_tmp = re.search(r"/(\d+)", chapter_url_tmp).group(1)
-                if chapter_id_tmp == '0':  # epub模式不支持起始章节
-                    start_index = i
+        # 定义目录索引
+        toc_index = ()
 
-            # 定义目录索引
-            toc_index = ()
+        chapter_id_name = 0
+        # 遍历每个章节链接
+        for chapter in tqdm(chapters):
+            chapter_id_name += 1
+            time.sleep(0.25)
+            # 获取章节标题
+            chapter_title = chapter.find("span", {"class": "txt"}).get_text().strip()
 
-            chapter_id_name = 0
-            # 遍历每个章节链接
-            for chapter in tqdm(chapters[start_index:]):
-                chapter_id_name += 1
-                time.sleep(0.25)
-                # 获取章节标题
-                chapter_title = chapter.find("span", {"class": "txt"}).get_text().strip()
+            # 获取章节网址
+            chapter_url = chapter.find("a")["href"]
 
-                # 获取章节网址
-                chapter_url = chapter.find("a")["href"]
+            # 获取章节 id
+            chapter_id = re.search(r"/(\d+)-(\d+)/", chapter_url).group(2)
 
-                # 获取章节 id
-                chapter_id = re.search(r"/(\d+)-(\d+)/", chapter_url).group(2)
+            # 尝试获取章节内容
+            chapter_content = None
+            retry_count = 1
+            while retry_count < 4:  # 设置最大重试次数
+                try:
+                    param_string = f"chapterId={chapter_id}id={book_id}{p.sign_key}"
+                    sign = hashlib.md5(param_string.encode()).hexdigest()
+                    encrypted_content = p.get_qimao(book_id, chapter_id, sign)
+                except Exception as e:
 
-                # 尝试获取章节内容
-                chapter_content = None
-                retry_count = 1
-                while retry_count < 4:  # 设置最大重试次数
-                    try:
-                        param_string = f"chapterId={chapter_id}id={book_id}{p.sign_key}"
-                        sign = hashlib.md5(param_string.encode()).hexdigest()
-                        encrypted_content = p.get_qimao(book_id, chapter_id, sign)
-                    except Exception as e:
+                    tqdm.write(Fore.RED + Style.BRIGHT + f"发生异常: {e}")
+                    if retry_count == 1:
+                        tqdm.write(f"{chapter_title} 获取失败，正在尝试重试...")
+                    tqdm.write(f"第 ({retry_count}/3) 次重试获取章节内容")
+                    retry_count += 1  # 否则重试
+                    continue
 
-                        tqdm.write(Fore.RED + Style.BRIGHT + f"发生异常: {e}")
-                        if retry_count == 1:
-                            tqdm.write(f"{chapter_title} 获取失败，正在尝试重试...")
-                        tqdm.write(f"第 ({retry_count}/3) 次重试获取章节内容")
-                        retry_count += 1  # 否则重试
-                        continue
+                if "data" in encrypted_content and "content" in encrypted_content["data"]:
+                    encrypted_content = encrypted_content['data']['content']
+                    chapter_content = p.decrypt_qimao(encrypted_content)
+                    chapter_content = re.sub('<br>', '\n', chapter_content)
+                    break  # 如果成功获取章节内容，跳出重试循环
+                else:
+                    if retry_count == 1:
+                        tqdm.write(f"{chapter_title} 获取失败，正在尝试重试...")
+                    tqdm.write(f"第 ({retry_count}/3) 次重试获取章节内容")
+                    retry_count += 1  # 否则重试
 
-                    if "data" in encrypted_content and "content" in encrypted_content["data"]:
-                        encrypted_content = encrypted_content['data']['content']
-                        chapter_content = p.decrypt_qimao(encrypted_content)
-                        chapter_content = re.sub('<br>', '\n', chapter_content)
-                        break  # 如果成功获取章节内容，跳出重试循环
-                    else:
-                        if retry_count == 1:
-                            tqdm.write(f"{chapter_title} 获取失败，正在尝试重试...")
-                        tqdm.write(f"第 ({retry_count}/3) 次重试获取章节内容")
-                        retry_count += 1  # 否则重试
+            if retry_count == 4:
+                tqdm.write(f"无法获取章节内容: {chapter_title}，跳过。")
+                continue  # 重试次数过多后，跳过当前章节
 
-                if retry_count == 4:
-                    tqdm.write(f"无法获取章节内容: {chapter_title}，跳过。")
-                    continue  # 重试次数过多后，跳过当前章节
+            # # 提取文章标签中的文本
+            # chapter_text = re.search(r"<article>([\s\S]*?)</article>", chapter_content).group(1)
+            chapter_text = f'{chapter_title}\n' + chapter_content
+            chapter_text = re.sub(r'\n', '</p><p>', chapter_text)
 
-                # # 提取文章标签中的文本
-                # chapter_text = re.search(r"<article>([\s\S]*?)</article>", chapter_content).group(1)
-                chapter_text = f'{chapter_title}\n' + chapter_content
-                chapter_text = re.sub(r'\n', '</p><p>', chapter_text)
+            # 在小说内容字符串中添加章节标题和内容
+            text = epub.EpubHtml(title=chapter_title, file_name=f'chapter_{chapter_id_name}.xhtml')
+            text.content = chapter_text
 
-                # 在小说内容字符串中添加章节标题和内容
-                text = epub.EpubHtml(title=chapter_title, file_name=f'chapter_{volume_id}_{chapter_id_name}.xhtml')
-                text.content = chapter_text
+            toc_index = toc_index + (text,)
+            book.spine.append(text)
 
-                toc_index = toc_index + (text,)
-                book.spine.append(text)
+            # 加入epub
+            book.add_item(text)
 
-                # 寻找第一章
-                if chapter_id_name == 1:
-                    first_chapter = f'chapter_{volume_id}_{chapter_id_name}.xhtml'
+            # 打印进度信息
+            tqdm.write(f"已获取 {chapter_title}")
 
-                # 加入epub
-                book.add_item(text)
-
-                # 打印进度信息
-                tqdm.write(f"已获取 {chapter_title}")
-            # 加入书籍索引
-            book.toc = book.toc + ((epub.Section(volume_title, href=first_chapter),
-                                   toc_index,),)
+        # 加入书籍索引
+        book.toc = toc_index
     except BaseException as e:
-        # 捕获所有异常，及时保存文件
+        # 捕获所有异常
         print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
         return
 
