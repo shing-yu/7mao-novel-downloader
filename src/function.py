@@ -142,7 +142,7 @@ https://www.gnu.org/licenses/gpl-3.0.html
 
 请在使用本程序之前确保遵守相关法律法规和网站的使用政策，如有疑问，请咨询法律顾问。
 
-ibxff所作用户脚本:https://greasyfork.org/zh-CN/scripts/476688
+ibxff所作用户脚本:https://greasyfork.org/zh-CN/scripts/479460
 开源仓库地址:https://github.com/xing-yv/7mao-novel-downloader
 gitee地址:https://gitee.com/xingyv1024/7mao-novel-downloader
 作者B站主页:https://space.bilibili.com/1920711824
