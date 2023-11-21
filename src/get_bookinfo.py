@@ -92,6 +92,3 @@ async def get_book_info(url):
     await browser.close()
 
     return {'intro': intro, 'title': title, 'info': info, 'chapters': chapters}
-
-# 运行异步任务
-# asyncio.run(main())
