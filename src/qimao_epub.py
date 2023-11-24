@@ -98,12 +98,47 @@ def qimao_epub(url, path_choice):
 
     # intro chapter
     intro_e = epub.EpubHtml(title='Introduction', file_name='intro.xhtml', lang='hr')
-    intro_e.content = (f'<html><head></head><body>'
-                       f'<img src="image.jpg" alt="Cover Image"/>'
+    intro_e.content = (f'<img src="image.jpg" alt="Cover Image"/>'
                        f'<h1>{title}</h1>'
-                       f'<p>{intro}</p>'
-                       f'</body></html>')
+                       f'<p>{intro}</p>')
     book.add_item(intro_e)
+
+    font_file = p.asset_path("Xingyv-Regular.ttf")
+    css1_file = p.asset_path("page_styles.css")
+    css2_file = p.asset_path("stylesheet.css")
+    # 打开资源文件
+    with open(font_file, 'rb') as f:
+        font_content = f.read()
+    with open(css1_file, 'r', encoding='utf-8') as f:
+        css1_content = f.read()
+    with open(css2_file, 'r', encoding='utf-8') as f:
+        css2_content = f.read()
+
+    # 创建一个EpubItem实例来存储你的字体文件
+    font = epub.EpubItem(
+        uid="font",
+        file_name="fonts/Xingyv-Regular.ttf",  # 这将是字体文件在epub书籍中的路径和文件名
+        media_type="application/x-font-ttf",
+        content=font_content,
+    )
+    # 创建一个EpubItem实例来存储你的CSS样式
+    nav_css1 = epub.EpubItem(
+        uid="style_nav1",
+        file_name="style/page_styles.css",  # 这将是CSS文件在epub书籍中的路径和文件名
+        media_type="text/css",
+        content=css1_content,
+    )
+    nav_css2 = epub.EpubItem(
+        uid="style_nav2",
+        file_name="style/stylesheet.css",  # 这将是CSS文件在epub书籍中的路径和文件名
+        media_type="text/css",
+        content=css2_content,
+    )
+
+    # 将资源文件添加到书籍中
+    book.add_item(font)
+    book.add_item(nav_css1)
+    book.add_item(nav_css2)
 
     # 创建索引
     book.toc = (epub.Link('intro.xhtml', '简介', 'intro'),)
@@ -163,12 +198,15 @@ def qimao_epub(url, path_choice):
 
             # # 提取文章标签中的文本
             # chapter_text = re.search(r"<article>([\s\S]*?)</article>", chapter_content).group(1)
-            chapter_text = f'{chapter_title}\n' + chapter_content
-            chapter_text = re.sub(r'\n', '</p><p>', chapter_text)
+            chapter_text = re.sub(r'\n', '</p><p>', chapter_content)
 
             # 在小说内容字符串中添加章节标题和内容
+            # 在小说内容字符串中添加章节标题和内容
             text = epub.EpubHtml(title=chapter_title, file_name=f'chapter_{chapter_id_name}.xhtml')
-            text.content = chapter_text
+            text.add_item(nav_css1)
+            text.add_item(nav_css2)
+            text.content = (f'<h2 class="titlecss">{chapter_title}</h2>'
+                            f'<p>{chapter_text}</p>')
 
             toc_index = toc_index + (text,)
             book.spine.append(text)

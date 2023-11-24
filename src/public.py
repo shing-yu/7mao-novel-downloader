@@ -21,7 +21,12 @@ https://www.gnu.org/licenses/gpl-3.0.html
 """
 
 import re
+import os
+import sys
+# pycrypto模块已不再使用，使用pycryptodome模块
+# noinspection PyPackageRequirements
 from Crypto.Cipher import AES
+# noinspection PyPackageRequirements
 from Crypto.Util.Padding import unpad
 from base64 import b64decode
 import requests
@@ -91,3 +96,10 @@ def get_qimao(book_id, chapter_id, sign):
 
 
 sign_key = 'd3dGiJc651gSQ8w1'
+
+
+def asset_path(relative_path):
+    if hasattr(sys, '_MEIPASS'):
+        # noinspection PyProtectedMember
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("assets"), relative_path)
