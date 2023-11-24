@@ -80,21 +80,23 @@ def start():
     global mode  # 声明mode为全局变量
     global return_info
 
-    # 定义变量flag控制是否退出程序
-    flag = True
     while True:
+        # 定义变量flag控制是否退出程序
+        flag = True
+        flag2 = True
         print_usage()
         print("请选择以下操作：")
-        print("1. 同意并进入正常模式")
-        print("2. 同意并进入自动批量模式")
-        print("3. 同意并进入分章保存模式(测试)")
-        print("4. 同意并进入Debug模式")
-        print("5. 同意并进入Epub电子书模式(测试)")
+        print("1. 进入正常模式")
+        print("2. 进入自动批量模式")
+        print("3. 进入分章保存模式(测试)")
+        print("4. 进入Debug模式")
+        print("5. 进入Epub电子书模式(测试)")
         print("6. 查看更多")
         print("7. 更新已下载的小说")
         print("8. 查看贡献（赞助）者名单")
-        print("9. 不同意，退出程序")
-        choice = input("请输入您的选择（1/2/3/4/5/6/7/8/9）:（默认“1”）\n")
+        print("9. 退出程序")
+        print("10. 撤回同意")
+        choice = input("请输入您的选择（1~10）:（默认“1”）\n")
 
         # 通过用户选择，决定模式，给mode赋值
         if not choice:
@@ -196,6 +198,38 @@ gitee地址:https://gitee.com/xingyv1024/7mao-novel-downloader
             else:
                 clear_screen()
                 continue
+
+        elif choice == '10':
+            clear_screen()
+            while True:
+                sure = input("您确定要撤回同意吗(yes/no)(默认:no): ")
+                if not sure:
+                    sure = "no"
+                if sure.lower() == "yes":
+                    break
+                elif sure.lower() == "no":
+                    flag2 = False
+                    break
+                else:
+                    print("输入无效，请重新输入。")
+            if flag2 is False:
+                clear_screen()
+                continue
+            else:
+                with open(eula_path, "w", encoding="utf-8") as f:
+                    eula_txt = f"""eula_url: {eula_url}
+license_url: {license_url}
+agreed: 
+no
+eula_date: 
+None
+
+"""
+                    f.write(eula_txt)
+                print("您已撤回同意")
+                input("按Enter键退出程序...")
+                exit(0)
+
         else:
             print("无效的选择，请重新输入。")
     get_parameter(retry=False)
