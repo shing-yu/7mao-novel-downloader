@@ -7,7 +7,7 @@ on:
       - develop
     paths:
       - 'src/*'
-      - '*.yml'
+      - '.github/workflows/*'
 
 jobs:
   build:
@@ -41,9 +41,9 @@ jobs:
         if [ "${{ matrix.os }}" == "windows-latest" ]; then
           pyinstaller --onefile --add-data "src/assets;." -n 7mao_tool_windows -i main.ico src/main.py
         elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-          pyinstaller --onefile --add-data "src/assets:." -n 7mao_tool_macos -i main.ico src/main.py
+          pyinstaller --onefile --add-data "src/assets:." -n 7mao_tool_macos src/main.py
         else
-          pyinstaller --onefile --add-data "src/assets:." -n 7mao_tool_ubuntu -i main.ico src/main.py
+          pyinstaller --onefile --add-data "src/assets:." -n 7mao_tool_ubuntu src/main.py
         fi
       shell: bash
 
