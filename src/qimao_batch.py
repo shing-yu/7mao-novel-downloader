@@ -52,10 +52,10 @@ def qimao_b(encoding, path_choice, data_folder):
             print("urls.txt文件为空")
             return
         else:
-            # 检查每行是否包含"/page/"，并且不是空行
+            # 检查每行是否包含"/shuku/"，并且不是空行
             for line in lines:
                 line = line.strip()
-                if line and "/page/" not in line:
+                if line and "/shuku/" not in line:
                     print(f"语法错误：第{line}行")
                     return "file syntax is incorrect"
 
