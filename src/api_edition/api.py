@@ -21,13 +21,14 @@ https://www.gnu.org/licenses/gpl-3.0.html
 """
 
 import re
+import os
 import multiprocessing
 import queue
 import threading
 from multiprocessing import Process, Manager
 import time
 import qimao_api as fa
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -190,6 +191,24 @@ def api():
 
     else:
         return "Bad Request.The value of ‘action’ can only be ‘add’ or ‘query’.", 400
+
+
+@app.route('/list')
+@limiter.limit("20/minute;200/hour;500/day")
+def file_list():
+    folder_path = 'qimao_output'  # 替换为你的文件夹路径
+    files = os.listdir(folder_path)
+    # 按最后修改时间排序
+    files.sort(key=lambda x: os.path.getmtime(os.path.join(folder_path, x)), reverse=True)
+    file_links = ['<a href="/download/{}">{}</a>'.format(f, f) for f in files]
+    return '<html><body>{}</body></html>'.format('<br>'.join(file_links))
+
+
+@app.route('/download/<path:filename>')
+@limiter.limit("10/minute;100/hour;300/day")
+def download_file(filename):
+    directory = os.path.abspath('qimao_output')
+    return send_from_directory(directory, filename, as_attachment=True)  # 替换为你的文件夹路径
 
 
 if __name__ == "__main__":
