@@ -22,52 +22,30 @@ https://www.gnu.org/licenses/gpl-3.0.html
 import os
 
 # 导入必要的模块
-import requests
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin
 import re
 from os import path
 import time
 import public as p
+from get_bookinfo import get_book_info
+import asyncio
+import hashlib
 
 
 # 定义正常模式用来下载7猫小说的函数
-def fanqie_l(url, encoding, return_dict):
+def qimao_l(url, encoding, return_dict):
     try:
-        ua = (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/118.0.0.0 "
-            "Safari/537.36"
-        )
-        headers = {
-            "User-Agent": ua
-        }
+        book_id = re.search(r"/(\d+)/", url).group(1)
 
-        # 提取书籍ID
-        book_id = re.search(r'page/(\d+)', url).group(1)
-
-        # 获取网页源码
-        response = requests.get(url, headers=headers)
-        html = response.text
-
-        # 解析网页源码
-        soup = BeautifulSoup(html, "html.parser")
-
-        # 获取小说标题
-        title = soup.find("h1").get_text()
-        # , class_ = "info-name"
-        # 替换非法字符
-        title = p.rename(title)
-
-        # 获取小说信息
-        info = soup.find("div", class_="page-header-info").get_text()
-
-        # 获取小说简介
-        intro = soup.find("div", class_="page-abstract-content").get_text()
+        # 调用异步函数获取7猫信息（模拟浏览器）
+        book_info = asyncio.run(get_book_info(url))
+        title = book_info['title']
+        info = book_info['info']
+        intro = book_info['intro']
+        chapters = book_info['chapters']
 
         # 拼接小说内容字符串
-        content = f"""使用 @星隅(xing-yv) 所作开源工具下载
+        content = f"""如果需要小说更新，请勿修改文件名
+使用 @星隅(xing-yv) 所作开源工具下载
 开源仓库地址:https://github.com/xing-yv/7mao-novel-downloader
 Gitee:https://gitee.com/xingyv1024/7mao-novel-downloader/
 任何人无权限制您访问本工具，如果有向您提供代下载服务者未事先告知您工具的获取方式，请向作者举报:xing_yv@outlook.com
@@ -75,73 +53,65 @@ Gitee:https://gitee.com/xingyv1024/7mao-novel-downloader/
 {title}
 {info}
 {intro}
-    """
-
-        # 获取所有章节链接
-        chapters = soup.find_all("div", class_="chapter-item")
+"""
 
         # 定义文件名
-        file_path = path.join('output', f'{title}_{book_id}.txt')
+        file_path = path.join('qimao_output', f'{title}_{book_id}.txt')
 
-        os.makedirs("output", exist_ok=True)
+        os.makedirs("qimao_output", exist_ok=True)
 
         try:
             # 遍历每个章节链接
             for chapter in chapters:
                 time.sleep(0.5)
                 # 获取章节标题
-                chapter_title = chapter.find("a").get_text()
+                chapter_title = chapter.find("span", {"class": "txt"}).get_text().strip()
 
                 # 获取章节网址
-                chapter_url = urljoin(url, chapter.find("a")["href"])
+                chapter_url = chapter.find("a")["href"]
 
                 # 获取章节 id
-                chapter_id = re.search(r"/(\d+)", chapter_url).group(1)
+                chapter_id = re.search(r"/(\d+)-(\d+)/", chapter_url).group(2)
 
-                # 构造 api 网址
-                api_url = (f"https://novel.snssdk.com/api/novel/book/reader/full/v1/?device_platform=android&"
-                           f"parent_enterfrom=novel_channel_search.tab.&aid=2329&platform_id=1&group_id="
-                           f"{chapter_id}&item_id={chapter_id}")
                 # 尝试获取章节内容
                 chapter_content = None
                 retry_count = 1
                 while retry_count < 4:  # 设置最大重试次数
                     try:
-                        # 获取 api 响应
-                        api_response = requests.get(api_url, headers=headers)
-
-                        # 解析 api 响应为 json 数据
-                        api_data = api_response.json()
+                        param_string = f"chapterId={chapter_id}id={book_id}{p.sign_key}"
+                        sign = hashlib.md5(param_string.encode()).hexdigest()
+                        encrypted_content = p.get_qimao(book_id, chapter_id, sign)
                     except Exception as e:
+
+                        print(f"发生异常: {e}")
                         if retry_count == 1:
-                            print(f"错误：{e}")
                             print(f"{chapter_title} 获取失败，正在尝试重试...")
                         print(f"第 ({retry_count}/3) 次重试获取章节内容")
                         retry_count += 1  # 否则重试
                         continue
 
-                    if "data" in api_data and "content" in api_data["data"]:
-                        chapter_content = api_data["data"]["content"]
+                    if "data" in encrypted_content and "content" in encrypted_content["data"]:
+                        encrypted_content = encrypted_content['data']['content']
+                        chapter_content = p.decrypt_qimao(encrypted_content)
+                        chapter_content = re.sub('<br>', '\n', chapter_content)
                         break  # 如果成功获取章节内容，跳出重试循环
                     else:
+                        if retry_count == 1:
+                            print(f"{chapter_title} 获取失败，正在尝试重试...")
+                        print(f"第 ({retry_count}/3) 次重试获取章节内容")
                         retry_count += 1  # 否则重试
 
                 if retry_count == 4:
+                    print(f"无法获取章节内容: {chapter_title}，跳过。")
                     continue  # 重试次数过多后，跳过当前章节
 
-                # 提取文章标签中的文本
-                chapter_text = re.search(r"<article>([\s\S]*?)</article>", chapter_content).group(1)
-
-                # 将 <p> 标签替换为换行符
-                chapter_text = re.sub(r"<p>", "\n", chapter_text)
-
                 # 去除其他 html 标签
-                chapter_text = re.sub(r"</?\w+>", "", chapter_text)
-
-                chapter_text = p.fix_publisher(chapter_text)
+                # chapter_text = re.sub(r"</?\w+>", "", chapter_text)
+                #
+                # chapter_text = p.fix_publisher(chapter_text)
 
                 # 在小说内容字符串中添加章节标题和内容
-                content += f"\n\n\n{chapter_title}\n{chapter_text}"
+                content += f"\n\n\n{chapter_title}\n\n{chapter_content}"
 
             # 根据编码转换小说内容字符串为二进制数据
             data = content.encode(encoding, errors='ignore')

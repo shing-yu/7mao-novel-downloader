@@ -20,12 +20,13 @@ https://www.gnu.org/licenses/gpl-3.0.html
 无论您对程序进行了任何操作，请始终保留此信息。
 """
 
+import re
 import multiprocessing
 import queue
 import threading
 from multiprocessing import Process, Manager
 import time
-import fanqie_api as fa
+import qimao_api as fa
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from flask_limiter import Limiter
@@ -87,7 +88,7 @@ class Spider:
             with Manager() as manager:
                 return_dict = manager.dict()
                 # 创建一个新的进程来运行爬虫函数
-                p = Process(target=fa.fanqie_l, args=(url, 'utf-8', return_dict))
+                p = Process(target=fa.qimao_l, args=(url, 'utf-8', return_dict))
                 p.start()
                 p.join()  # 等待进程结束
                 if 'error' in return_dict:
@@ -123,8 +124,9 @@ class Spider:
 
     def add_url(self, url):
         # 检查URL格式是否正确，如果不正确则返回错误信息，否则将URL添加到队列中并返回成功信息
-        if "/page/" not in url:
-            return "URL格式不正确，请重新输入"
+        if "/shuku/" not in url:
+            print(f"{url} URL格式不正确，内部错误")
+            return "URL格式不正确，内部错误", 500
         else:
             if url not in self.task_status or self.task_status[url] == "失败":
                 self.url_queue.put(url)
@@ -151,10 +153,29 @@ def api():
     # 检查请求数据是否包含'action'和'id'字段，如果没有则返回418错误
     if 'action' not in data or 'id' not in data:
         return "Bad Request.The request is missing necessary json data.", 400
+    if data['id'].isdigit():
+        pass
+    else:
+        if '_0' in data['id']:
+            return "暂不支持此书籍（书籍ID中含有“_0”），请等待该书籍后续更新。"
+        if 'www.qimao.com/shuku' in data['id']:
+            # noinspection PyBroadException
+            try:
+                data['id'] = re.search(r"shuku/(\d+)", data['id']).group(1)
+            except Exception:
+                return "你输入的不是书籍ID或正确的链接。", 400
+        elif 'app-share.wtzw.com' in data['id']:
+            # noinspection PyBroadException
+            try:
+                data['id'] = re.search(r"article-detail/(\d+)", data['id']).group(1)
+            except Exception:
+                return "你输入的不是书籍ID或正确的链接。", 400
+        else:
+            return "你输入的不是书籍ID或正确的链接。", 400
 
     # 如果'action'字段的值为'add'，则尝试将URL添加到队列中，并返回相应的信息和位置
     if data['action'] == 'add':
-        url = 'https://fanqienovel.com/page/' + data['id']
+        url = 'https://www.qimao.com/shuku/' + data['id'] + '/'
         message = spider.add_url(url)
         position = list(spider.url_queue.queue).index(url) + 1 if url in list(spider.url_queue.queue) else None
         status = spider.task_status.get(url, None)
@@ -162,7 +183,7 @@ def api():
 
     # 如果'action'字段的值为'query'，则检查URL是否在队列中，并返回相应的信息和位置或不存在的信息
     elif data['action'] == 'query':
-        url = 'https://fanqienovel.com/page/' + data['id']
+        url = 'https://www.qimao.com/shuku/' + data['id'] + '/'
         position = list(spider.url_queue.queue).index(url) + 1 if url in list(spider.url_queue.queue) else None
         status = spider.task_status.get(url, None)
         return jsonify({'exists': status is not None, 'position': position, 'status': status})
@@ -173,4 +194,4 @@ def api():
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5001)
