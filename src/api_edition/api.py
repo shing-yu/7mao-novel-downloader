@@ -83,12 +83,12 @@ def block_method():
             else:
                 # 如果限制已经解除，那么从黑名单中移除这个IP
                 del blacklist[ip]
-    # 如果你需要将HTTP请求重定向到HTTPS，请取消下方代码的注释
-    # if not request.is_secure:
-    #     # noinspection HttpUrlsUsage
-    #     url = request.url.replace('http://', 'https://', 1)
-    #     code = 301
-    #     return redirect(url, code=code)
+        # 如果你需要将HTTP请求重定向到HTTPS，请取消下方代码的注释
+        # if not request.is_secure:
+        #     # noinspection HttpUrlsUsage
+        #     url = request.url.replace('http://', 'https://', 1)
+        #     code = 301
+        #     return redirect(url, code=code)
 
 
 @app.errorhandler(429)
