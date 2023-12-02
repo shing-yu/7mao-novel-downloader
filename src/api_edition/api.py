@@ -56,6 +56,7 @@ blacklist = {}
 
 # 如果你要限制访问的时间段，可以使用下面的装饰器，将它添加到需要限制的路由上，然后将下面的注释取消掉
 # 注意！该装饰器将使用服务器的本地时区时间，而不是你所在的时区的时间！
+# TODO: 修复时区问题
 # def only_on_time_range(start_hour, end_hour):
 #     def decorator(f):
 #         @wraps(f)
@@ -190,7 +191,7 @@ def api():
         pass
     else:
         if '_0' in data['id']:
-            return "暂不支持此书籍（书籍ID中含有“_0”），请等待该书籍后续更新。"
+            return "暂不支持此书籍（书籍ID中含有“_0”），请等待该书籍后续更新。", 422
         if 'www.qimao.com/shuku' in data['id']:
             # noinspection PyBroadException
             try:
