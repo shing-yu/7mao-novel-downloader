@@ -22,6 +22,7 @@ https://www.gnu.org/licenses/gpl-3.0.html
 
 import re
 import os
+import socket
 import multiprocessing
 import queue
 import threading
@@ -213,6 +214,25 @@ def download_file(filename):
     return send_from_directory(directory, filename, as_attachment=True)  # 替换为你的文件夹路径
 
 
+# 检测是否支持IPv6
+def is_ipv6_supported():
+    # noinspection PyBroadException
+    try:
+        socket.socket(socket.AF_INET6)
+        return True
+    except Exception:
+        return False
+
+
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    app.run(host='0.0.0.0', port=5001)
+    # 如果支持IPv6，则同时监听IPv4和IPv6
+    if is_ipv6_supported():
+        app.run(host='::', port=5001, threaded=True)
+        # 如果需要启用HTTPS，请取消下一行的注释，并将证书和密钥的路径替换为你的证书和密钥的路径
+        # app.run(host='::', port=5001, threaded=True, ssl_context=('path/xxxx.pem', 'path/xxxx.key'))
+    else:
+        # 否则只监听IPv4
+        app.run(host='0.0.0.0', port=5001)
+        # 如果需要启用HTTPS，请取消下一行的注释，并将证书和密钥的路径替换为你的证书和密钥的路径
+        # app.run(host='0.0.0.0', port=5001, ssl_context=('path/xxxx.pem', 'path/xxxx.key'))
