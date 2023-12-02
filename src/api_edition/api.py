@@ -28,6 +28,7 @@ import threading
 from multiprocessing import Process, Manager
 import time
 import qimao_api as fa
+# noinspection PyPackageRequirements
 from flask import Flask, request, jsonify, make_response, send_from_directory
 from flask_cors import CORS
 from flask_limiter import Limiter
