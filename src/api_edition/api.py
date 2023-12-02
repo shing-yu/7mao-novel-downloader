@@ -35,6 +35,13 @@ from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
 from datetime import datetime, timedelta
+# 如果需要限制访问的时间段，请取消下一行的注释
+# from functools import wraps
+
+# 重定向HTTP请求到HTTPS使用：
+# # noinspection PyPackageRequirements
+# from flask import redirect
+
 
 app = Flask(__name__)
 CORS(app)
@@ -46,6 +53,18 @@ limiter = Limiter(
 
 # 存储被限制的IP和他们的限制解除时间
 blacklist = {}
+
+# 如果你要限制访问的时间段，可以使用下面的装饰器，将它添加到需要限制的路由上，然后将下面的注释取消掉
+# def only_on_time_range(start_hour, end_hour):
+#     def decorator(f):
+#         @wraps(f)
+#         def decorated_function(*args, **kwargs):
+#             now = datetime.now().time()
+#             if not (start_hour <= now.hour < end_hour):
+#                 return f"此服务只在{start_hour}点到{end_hour}点开放。", 503
+#             return f(*args, **kwargs)
+#         return decorated_function
+#     return decorator
 
 
 @app.before_request
@@ -64,6 +83,12 @@ def block_method():
             else:
                 # 如果限制已经解除，那么从黑名单中移除这个IP
                 del blacklist[ip]
+    # 如果你需要将HTTP请求重定向到HTTPS，请取消下方代码的注释
+    # if not request.is_secure:
+    #     # noinspection HttpUrlsUsage
+    #     url = request.url.replace('http://', 'https://', 1)
+    #     code = 301
+    #     return redirect(url, code=code)
 
 
 @app.errorhandler(429)
@@ -151,6 +176,8 @@ spider.start()
 
 @app.route('/api', methods=['POST'])
 @limiter.limit("15/minute;200/hour;300/day")  # 限制请求
+# 如果需要限制访问的时间段，请取消下一行的注释，并将时间段替换为你的时间段
+# @only_on_time_range(8, 22)
 def api():
     # 获取请求数据
     data = request.get_json()
