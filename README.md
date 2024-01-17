@@ -3,7 +3,7 @@
 **此项目是[fanqie-novel-download](https://github.com/xing-yv/fanqie-novel-download)的变体项目。**  
 它提供了一个简单的命令行界面，可以输入小说目录页面的URL并选择保存下载内容的编码格式。  
 本程序灵感即api均来源于ibxff所作用户脚本（MIT），你可以在[此处](https://greasyfork.org/zh-CN/scripts/479460)获取。  
-用户QQ4群(闲聊):854953755  
+QQ： 外1群：149050832  外2群：667146297  频道：https://pd.qq.com/s/hd0ciuont
 感谢贡献（赞助）者们对本项目的支持，你可以在[此处](https://github.com/xing-yv/7mao-novel-downloader/blob/main/CONTRIBUTORS.md)获取贡献和赞助者名单。
 
 ## 特点
@@ -69,12 +69,6 @@
 pip install -r requirements.txt
 ```
 
-或（全部版本）
-
-```shell
-pip install -r requirements-all.txt
-```
-
 ## 许可证
 
 为保护此程序不被用于不良商业行为，
@@ -102,6 +96,10 @@ pip install -r requirements-all.txt
 ## 反馈
 
 如果您遇到问题或有改进建议，请将其提交到此项目的[GitHub issues](https://github.com/xing-yv/7mao-novel-downloader/issues)页面。
+
+## Star趋势
+
+![Stars](https://api.star-history.com/svg?repos=shing-yu/7mao-novel-downloader&type=Date)
 
 ## 赞助
 

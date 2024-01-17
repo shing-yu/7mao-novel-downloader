@@ -30,6 +30,11 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import unpad
 from base64 import b64decode
 import requests
+from tqdm import tqdm
+import hashlib
+from colorama import Fore, Style, init
+
+init(autoreset=True)
 
 
 # 替换非法字符
@@ -76,7 +81,53 @@ def decrypt_qimao(content):
     return fntxt
 
 
-def get_qimao(book_id, chapter_id, sign):
+def get_api(book_id, chapter):
+    # 获取章节标题
+    chapter_title = chapter.find("span", {"class": "txt"}).get_text().strip()
+    chapter_title = rename(chapter_title)
+
+    # 获取章节网址
+    chapter_url = chapter.find("a")["href"]
+
+    # 获取章节 id
+    chapter_id = re.search(r"/(\d+)-(\d+)/", chapter_url).group(2)
+
+    # 尝试获取章节内容
+    chapter_content = None
+    retry_count = 1
+    while retry_count < 4:  # 设置最大重试次数
+        try:
+            param_string = f"chapterId={chapter_id}id={book_id}{sign_key}"
+            sign = hashlib.md5(param_string.encode()).hexdigest()
+            encrypted_content = send_request(book_id, chapter_id, sign)
+        except Exception as e:
+
+            tqdm.write(Fore.RED + Style.BRIGHT + f"发生异常: {e}")
+            if retry_count == 1:
+                tqdm.write(f"{chapter_title} 获取失败，正在尝试重试...")
+            tqdm.write(f"第 ({retry_count}/3) 次重试获取章节内容")
+            retry_count += 1  # 否则重试
+            continue
+
+        if "data" in encrypted_content and "content" in encrypted_content["data"]:
+            encrypted_content = encrypted_content['data']['content']
+            chapter_content = decrypt_qimao(encrypted_content)
+            chapter_content = re.sub('<br>', '\n', chapter_content)
+            break  # 如果成功获取章节内容，跳出重试循环
+        else:
+            if retry_count == 1:
+                tqdm.write(f"{chapter_title} 获取失败，正在尝试重试...")
+            tqdm.write(f"第 ({retry_count}/3) 次重试获取章节内容")
+            retry_count += 1  # 否则重试
+
+    if retry_count == 4:
+        tqdm.write(f"无法获取章节内容: {chapter_title}，跳过。")
+        return  # 重试次数过多后，跳过当前章节
+
+    return chapter_title, chapter_content, chapter_id
+
+
+def send_request(book_id, chapter_id, sign):
     headers = {
         "AUTHORIZATION": "",
         "app-version": "51110",
