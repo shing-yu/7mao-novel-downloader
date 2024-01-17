@@ -274,17 +274,17 @@ def get_parameter(retry):
                 try:
                     if page_url.isdigit():
                         book_id = page_url
-                        page_url = "https://www.qimao.com/shuku/" + book_id
+                        page_url = "https://www.qimao.com/shuku/" + book_id + "/"
                         break
 
                     elif "www.qimao.com/shuku/" in page_url:
                         book_id = re.search(r"www.qimao.com/shuku/(\d+)", page_url).group(1)
-                        page_url = "https://www.qimao.com/shuku/" + book_id
+                        page_url = "https://www.qimao.com/shuku/" + book_id + "/"
                         break  # 如果是正确的链接，则退出循环
 
                     elif "app-share.wtzw.com" in page_url:
                         book_id = re.search(r"article-detail/(\d+)", page_url).group(1)
-                        page_url = "https://www.qimao.com/shuku/" + book_id
+                        page_url = "https://www.qimao.com/shuku/" + book_id + "/"
                         break
                     else:
                         print(Fore.YELLOW + Style.BRIGHT + "请输入正确的小说目录页面或手机端分享链接（或书籍ID）")
