@@ -66,7 +66,7 @@ def print_usage():
 您可以使用此程序提供有偿代下载服务，但在提供服务的同时，必须向服务的接收者提供此程序的获取方式，
 以便他们可以自由使用、修改和分发该软件，同时也必须遵守GPLv3协议的所有其他规定。
 
-用户QQ4群(闲聊):854953755
+QQ： 外1群：149050832  外2群：667146297
 如果想要指定开始下载的章节，请在输入目录页链接时按Ctrl+C。
 
 免责声明：
@@ -121,7 +121,7 @@ def start():
         elif choice == '4':
             mode = 1
             clear_screen()
-            print("您已进入Debug模式，将会给出更多调试信息。\n")
+            print("您已进入Debug模式，将会给出更多选项和调试信息。\n")
             break
         elif choice == '5':
             mode = 4
@@ -167,7 +167,7 @@ gitee地址:https://gitee.com/xingyv1024/7mao-novel-downloader
             clear_screen()
             contributors_url = 'https://gitee.com/xingyv1024/7mao-novel-downloader/raw/main/CONTRIBUTORS.md'
             try:
-                contributors = requests.get(contributors_url)
+                contributors = requests.get(contributors_url, timeout=5)
 
                 # 检查响应状态码
                 if contributors.status_code == 200:
@@ -260,7 +260,7 @@ def get_parameter(retry):
         # 不是则让用户输入小说目录页的链接
         while True:
             try:
-                page_url = input("请输入目录页链接：\n")
+                page_url = input("请输入目录页或手机端分享链接（或书籍ID）：\n")
 
                 # 预留七猫小说判断
                 # if "qimao" in page_url:
@@ -270,12 +270,26 @@ def get_parameter(retry):
                 #      mode = 3
                 # elif "qimao" in page_url:
 
-                # 检查 url 是否是小说目录页面
-                if "/shuku/" not in page_url:
-                    print("请输入正确的小说目录页面链接")
-                else:
-                    book_id = re.search(r"/(\d+)", page_url).group(1)
-                    break  # 如果是正确的链接，则退出循环
+                # 检查 url 类型
+                try:
+                    if page_url.isdigit():
+                        book_id = page_url
+                        page_url = "https://www.qimao.com/shuku/" + book_id
+                        break
+
+                    elif "www.qimao.com/shuku/" in page_url:
+                        book_id = re.search(r"www.qimao.com/shuku/(\d+)", page_url).group(1)
+                        page_url = "https://www.qimao.com/shuku/" + book_id
+                        break  # 如果是正确的链接，则退出循环
+
+                    elif "app-share.wtzw.com" in page_url:
+                        book_id = re.search(r"article-detail/(\d+)", page_url).group(1)
+                        page_url = "https://www.qimao.com/shuku/" + book_id
+                        break
+                    else:
+                        print(Fore.YELLOW + Style.BRIGHT + "请输入正确的小说目录页面或手机端分享链接（或书籍ID）")
+                except AttributeError:
+                    print(Fore.YELLOW + Style.BRIGHT + "请输入正确的小说目录页面或手机端分享链接（或书籍ID）")
             # 当用户按下Ctrl+C是，可以自定义起始章节id
             except KeyboardInterrupt:
                 while True:
@@ -295,7 +309,7 @@ def get_parameter(retry):
     while True:
         if mode == 4:
             break
-        txt_encoding_num = input("请输入保存文件所使用的编码(默认:1)：1 -> utf-8 | 2 -> gb2312\n")
+        txt_encoding_num = input("请输入保存文件所使用的编码(默认:1)：1 -> utf-8 | 2 -> gb2312 | 3-> 搜索编码\n")
 
         if not txt_encoding_num:
             txt_encoding_num = '1'
@@ -306,6 +320,9 @@ def get_parameter(retry):
             break
         elif txt_encoding_num == '2':
             txt_encoding = 'gb2312'
+            break
+        elif txt_encoding_num == '3':
+            txt_encoding = get_more_encoding()
             break
         else:
             print("输入无效，请重新输入。")
@@ -345,6 +362,58 @@ def get_parameter(retry):
             print("输入无效，请重新输入。")
             continue
     perform_user_mode_action()
+
+
+def get_more_encoding():
+    encodings = [
+        "utf-8", "ascii", "latin-1", "iso-8859-1", "utf-16",
+        "utf-16-le", "utf-16-be", "utf-32", "utf-32-le", "utf-32-be",
+        "cp1252", "cp437", "cp850", "cp866", "cp932",
+        "cp949", "cp950", "koi8-r", "koi8-u", "macroman",
+        "macintosh", "gb2312", "gbk", "gb18030", "big5",
+        "big5hkscs", "shift_jis", "euc_jp", "euc_kr", "iso2022_jp",
+        "iso2022_jp_1", "iso2022_jp_2", "iso2022_jp_2004", "iso2022_jp_3", "iso2022_jp_ext",
+        "shift_jis_2004", "shift_jisx0213", "euc_jis_2004", "euc_jisx0213", "latin_1",
+        "iso8859_2", "iso8859_3", "iso8859_4", "iso8859_5", "iso8859_6",
+        "iso8859_7", "iso8859_8", "iso8859_9", "iso8859_10", "iso8859_13",
+        "iso8859_14", "iso8859_15", "iso8859_16", "cp500", "cp720",
+        "cp737", "cp775", "cp852", "cp855", "cp857",
+        "cp858", "cp860", "cp861", "cp862", "cp863",
+        "cp864", "cp865", "cp869", "cp874", "cp875",
+        "cp1006", "cp1026", "cp1140", "cp1250", "cp1251",
+        "cp1253", "cp1254", "cp1255", "cp1256", "cp1257",
+        "cp1258", "cp65001", "hz", "iso2022_jp_2004", "iso2022_kr",
+        "iso8859_11", "iso8859_16", "johab", "ptcp154", "utf_7",
+        "utf_8_sig"
+    ]
+
+    while True:
+        query = input("请输入你想要搜索的编码：")
+        query = query.lower()
+        import difflib
+        # 使用difflib库的get_close_matches方法找到相似的编码
+        similar_encodings = difflib.get_close_matches(query, encodings)
+
+        print("以下是与你的搜索内容相似的编码：")
+        for i, encoding in enumerate(similar_encodings):
+            print(f"{i + 1}. {encoding}")
+
+        while True:
+            choice_ = input("请选择一个编码, 输入r以重新搜索：")
+            if choice_ == "r":
+                clear_screen()
+                break
+            elif choice_.isdigit():
+                choice = int(choice_)
+                if choice > len(similar_encodings):
+                    print("输入无效，请重新输入。")
+                    continue
+                chosen_encoding = similar_encodings[choice - 1]
+                print(f"你选择的编码是：{chosen_encoding}")
+                return chosen_encoding
+            else:
+                print("输入无效，请重新输入。")
+                continue
 
 
 def perform_user_mode_action():
