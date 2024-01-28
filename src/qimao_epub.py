@@ -33,7 +33,6 @@ from tqdm import tqdm
 import public as p
 from colorama import Fore, Style, init
 import asyncio
-import hashlib
 
 # 设置镜像下载地址
 os.environ["PYPPETEER_DOWNLOAD_HOST"] = "https://mirrors.huaweicloud.com"
@@ -155,46 +154,13 @@ def qimao_epub(url, path_choice):
         for chapter in tqdm(chapters):
             chapter_id_name += 1
             time.sleep(0.25)
-            # 获取章节标题
-            chapter_title = chapter.find("span", {"class": "txt"}).get_text().strip()
 
-            # 获取章节网址
-            chapter_url = chapter.find("a")["href"]
+            result = p.get_api(book_id, chapter)
 
-            # 获取章节 id
-            chapter_id = re.search(r"/(\d+)-(\d+)/", chapter_url).group(2)
-
-            # 尝试获取章节内容
-            chapter_content = None
-            retry_count = 1
-            while retry_count < 4:  # 设置最大重试次数
-                try:
-                    param_string = f"chapterId={chapter_id}id={book_id}{p.sign_key}"
-                    sign = hashlib.md5(param_string.encode()).hexdigest()
-                    encrypted_content = p.get_qimao(book_id, chapter_id, sign)
-                except Exception as e:
-
-                    tqdm.write(Fore.RED + Style.BRIGHT + f"发生异常: {e}")
-                    if retry_count == 1:
-                        tqdm.write(f"{chapter_title} 获取失败，正在尝试重试...")
-                    tqdm.write(f"第 ({retry_count}/3) 次重试获取章节内容")
-                    retry_count += 1  # 否则重试
-                    continue
-
-                if "data" in encrypted_content and "content" in encrypted_content["data"]:
-                    encrypted_content = encrypted_content['data']['content']
-                    chapter_content = p.decrypt_qimao(encrypted_content)
-                    chapter_content = re.sub('<br>', '\n', chapter_content)
-                    break  # 如果成功获取章节内容，跳出重试循环
-                else:
-                    if retry_count == 1:
-                        tqdm.write(f"{chapter_title} 获取失败，正在尝试重试...")
-                    tqdm.write(f"第 ({retry_count}/3) 次重试获取章节内容")
-                    retry_count += 1  # 否则重试
-
-            if retry_count == 4:
-                tqdm.write(f"无法获取章节内容: {chapter_title}，跳过。")
-                continue  # 重试次数过多后，跳过当前章节
+            if result is None:
+                continue
+            else:
+                chapter_title, chapter_content, chapter_id = result
 
             # # 提取文章标签中的文本
             # chapter_text = re.search(r"<article>([\s\S]*?)</article>", chapter_content).group(1)
