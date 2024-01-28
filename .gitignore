@@ -24,3 +24,4 @@ build/
 # 忽略测试文件
 src/test.py
 src/api_edition/cos-config.json
+src/setup.py
