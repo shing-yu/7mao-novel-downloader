@@ -10,6 +10,7 @@ from tqdm import tqdm
 import hashlib
 import public as p
 from colorama import Fore, Style, init
+from requests.exceptions import Timeout
 
 init(autoreset=True)
 
@@ -132,6 +133,9 @@ def download_novels(url, encoding, folder_path, data_folder):
     # 调用异步函数获取7猫信息（模拟浏览器）
     try:
         title, content, chapters = p.get_book_info(url)
+    except Timeout:
+        print(Fore.RED + Style.BRIGHT + "连接超时，请检查网络连接是否正常。")
+        return
     except Exception as e:
         print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
         return

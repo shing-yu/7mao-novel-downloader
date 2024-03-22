@@ -8,6 +8,7 @@ import os
 import re
 import time
 import requests
+from requests.exceptions import Timeout
 import platform
 from sys import exit
 from packaging import version
@@ -31,10 +32,6 @@ license_url_zh = "https://gitee.com/xingyv1024/7mao-novel-downloader/raw/main/LI
 os.makedirs(data_path, exist_ok=True)
 book_id = None
 start_chapter_id = "0"
-proxies = {
-    "http": None,
-    "https": None
-}
 
 
 # 用户须知
@@ -146,7 +143,7 @@ gitee地址:https://gitee.com/xingyv1024/7mao-novel-downloader
             clear_screen()
             contributors_url = 'https://gitee.com/xingyv1024/7mao-novel-downloader/raw/main/CONTRIBUTORS.md'
             try:
-                contributors = requests.get(contributors_url, timeout=5, proxies=proxies)
+                contributors = requests.get(contributors_url, timeout=5, proxies=p.proxies)
 
                 # 检查响应状态码
                 if contributors.status_code == 200:
@@ -449,7 +446,7 @@ def check_update(now_version):
     # noinspection PyBroadException
     try:
         # 发送GET请求以获取最新的发行版信息
-        response = requests.get(api_url, timeout=5, proxies=proxies)
+        response = requests.get(api_url, timeout=5, proxies=p.proxies)
 
         if response.status_code != 200:
             print(f"请求失败，状态码：{response.status_code}")
@@ -551,7 +548,7 @@ def check_eula():
         eula_date_old = eula_txt.splitlines()[5]
         # noinspection PyBroadException
         try:
-            eula_text = requests.get(eula_url, timeout=10, proxies=proxies).text
+            eula_text = requests.get(eula_url, timeout=10, proxies=p.proxies).text
         except Exception:
             print("获取最终用户许可协议失败，请检查网络连接")
             input("按Enter键继续...\n")
@@ -597,9 +594,9 @@ eula_date:
 def agree_eula():
     # noinspection PyBroadException
     try:
-        eula_text = requests.get(eula_url, timeout=10, proxies=proxies).text
-        license_text = requests.get(license_url, timeout=10, proxies=proxies).text
-        license_text_zh = requests.get(license_url_zh, timeout=10, proxies=proxies).text
+        eula_text = requests.get(eula_url, timeout=10, proxies=p.proxies).text
+        license_text = requests.get(license_url, timeout=10, proxies=p.proxies).text
+        license_text_zh = requests.get(license_url_zh, timeout=10, proxies=p.proxies).text
     except Exception:
         print("获取最终用户许可协议失败，请检查网络连接")
         input("按Enter键继续...\n")
@@ -665,7 +662,7 @@ def search():
                 'is_short_story_user': '0'
             }
             response = requests.get("https://api-bc.wtzw.com/search/v1/words", params=p.sign_url_params(params_),
-                                    headers=p.get_headers("00000000")).json()
+                                    headers=p.get_headers("00000000"), timeout=10).json()
             books = response['data']['books']
 
             for i, book in enumerate(books):
@@ -691,6 +688,9 @@ def search():
                     print("输入无效，请重新输入。")
                     continue
     except KeyboardInterrupt:
+        return
+    except Timeout:
+        print("请求超时，请检查网络连接")
         return
     # except Exception as e:
     #     print(f"发生错误: {e}")

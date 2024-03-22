@@ -1,7 +1,7 @@
 import function as f
 from sys import exit
 
-version = "v3.0.0-alpha"
+version = "v3.0.0-beta"
 
 # 检查另一个实例是否正在运行
 f.check_instance()

@@ -38,6 +38,12 @@ from colorama import Fore, Style, init
 init(autoreset=True)
 
 
+proxies = {
+    "http": None,
+    "https": None
+}
+
+
 def get_headers(book_id):
 
     version_list = [
@@ -256,7 +262,8 @@ def send_request(book_id, chapter_id):
 
     params = sign_url_params(params)
 
-    response = requests.get(f"https://api-ks.wtzw.com/api/v1/chapter/content", headers=headers, params=params)
+    response = requests.get(f"https://api-ks.wtzw.com/api/v1/chapter/content", headers=headers, params=params,
+                            proxies=proxies, timeout=10)
     return response.json()
 
 
@@ -274,7 +281,8 @@ def get_book_info(url, mode="normal"):
     # 提取ID
     book_id = re.search(r"/(\d+)/", url).group(1)
     # 请求API
-    info = requests.get(f"https://api-bc.wtzw.com/api/v1/reader/detail?id={book_id}").json()
+    info = requests.get(f"https://api-bc.wtzw.com/api/v1/reader/detail?id={book_id}", proxies=proxies,
+                        timeout=12).json()
 
     # 提取信息
     title = info["data"]["title"]
@@ -304,7 +312,9 @@ Gitee:https://gitee.com/xingyv1024/7mao-novel-downloader/
     }
     response = requests.get("https://api-ks.wtzw.com/api/v1/chapter/chapter-list",
                             params=sign_url_params(params),
-                            headers=get_headers(book_id)).json()
+                            headers=get_headers(book_id),
+                            proxies=proxies,
+                            timeout=12).json()
 
     # {
     #     "data": {

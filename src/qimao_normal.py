@@ -8,7 +8,7 @@ import base64
 # 导入必要的模块
 from colorama import Fore, Style, init
 from tqdm import tqdm
-
+from requests.exceptions import Timeout
 import public as p
 
 init(autoreset=True)
@@ -23,6 +23,9 @@ def qimao_n(url, encoding, path_choice, data_folder, start_chapter_id,
     # 调用异步函数获取7猫信息（模拟浏览器）
     try:
         title, content, chapters = p.get_book_info(url)
+    except Timeout:
+        print(Fore.RED + Style.BRIGHT + "连接超时，请检查网络连接是否正常。")
+        return
     except Exception as e:
         print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
         return

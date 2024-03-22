@@ -4,6 +4,7 @@ import json
 
 # 导入必要的模块
 import requests
+from requests.exceptions import Timeout
 from ebooklib import epub
 import re
 import time
@@ -20,6 +21,11 @@ def qimao_epub(url, path_choice, config_path):
 
     try:
         title, intro, author, img_url, chapters = p.get_book_info(url, mode='epub')
+        # 下载封面
+        response = requests.get(img_url, timeout=10, proxies=p.proxies)
+    except Timeout:
+        print(Fore.RED + Style.BRIGHT + "连接超时，请检查网络连接是否正常。")
+        return
     except Exception as e:
         print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
         return
@@ -27,8 +33,6 @@ def qimao_epub(url, path_choice, config_path):
     # 创建epub电子书
     book = epub.EpubBook()
 
-    # 下载封面
-    response = requests.get(img_url)
     # 获取图像的内容
     img_data = response.content
 

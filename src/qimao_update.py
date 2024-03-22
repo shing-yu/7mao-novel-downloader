@@ -148,6 +148,9 @@ def download_novel(url, encoding, start_chapter_id, txt_file_path):
     # 调用异步函数获取7猫信息（模拟浏览器）
     try:
         _, _, chapters = p.get_book_info(url)
+    except Timeout:
+        print(Fore.RED + Style.BRIGHT + "连接超时，请检查网络连接是否正常。")
+        return
     except Exception as e:
         print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
         return
@@ -362,12 +365,15 @@ def qimao_epub_update(book_path):
 
     try:
         title, intro, author, img_url, chapters = p.get_book_info(url, mode='epub')
+        # 下载封面
+        response = requests.get(img_url, timeout=10, proxies=p.proxies)
+    except Timeout:
+        print(Fore.RED + Style.BRIGHT + "连接超时，请检查网络连接是否正常。")
+        return
     except Exception as e:
         print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
         return
 
-    # 下载封面
-    response = requests.get(img_url)
     # 获取图像的内容
     img_data = response.content
 
@@ -386,16 +392,6 @@ def qimao_epub_update(book_path):
     book.set_language('zh-CN')
     book.add_author(author)
     book.add_metadata('DC', 'description', intro)
-
-    yaml_data = {
-        'qmid': book_id
-    }
-    yaml_content = yaml.dump(yaml_data)
-
-    # 设置 qmid 元数据
-    yaml_item = epub.EpubItem(uid='yaml', file_name='metadata.yaml', media_type='application/octet-stream',
-                              content=yaml_content)
-    book.add_item(yaml_item)
 
     # intro chapter
     intro_e = epub.EpubHtml(title='Introduction', file_name='intro.xhtml', lang='hr')
