@@ -1,78 +1,31 @@
-"""
-作者：星隅（xing-yv）
-
-版权所有（C）2023 星隅（xing-yv）
-
-本软件根据GNU通用公共许可证第三版（GPLv3）发布；
-你可以在以下位置找到该许可证的副本：
-https://www.gnu.org/licenses/gpl-3.0.html
-
-根据GPLv3的规定，您有权在遵循许可证的前提下自由使用、修改和分发本软件。
-请注意，根据许可证的要求，任何对本软件的修改和分发都必须包括原始的版权声明和GPLv3的完整文本。
-
-本软件提供的是按"原样"提供的，没有任何明示或暗示的保证，包括但不限于适销性和特定用途的适用性。作者不对任何直接或间接损害或其他责任承担任何责任。在适用法律允许的最大范围内，作者明确放弃了所有明示或暗示的担保和条件。
-
-免责声明：
-该程序仅用于学习和研究Python网络爬虫和网页处理技术，不得用于任何非法活动或侵犯他人权益的行为。使用本程序所产生的一切法律责任和风险，均由用户自行承担，与作者和项目协作者、贡献者无关。作者不对因使用该程序而导致的任何损失或损害承担任何责任。
-
-请在使用本程序之前确保遵守相关法律法规和网站的使用政策，如有疑问，请咨询法律顾问。
-
-无论您对程序进行了任何操作，请始终保留此信息。
-"""
-
-
 import os
+import yaml
+import json
 
 # 导入必要的模块
 import requests
-from bs4 import BeautifulSoup
 from ebooklib import epub
 import re
 import time
 from tqdm import tqdm
 import public as p
 from colorama import Fore, Style, init
-import asyncio
-
-# 设置镜像下载地址
-os.environ["PYPPETEER_DOWNLOAD_HOST"] = "https://mirrors.huaweicloud.com"
-from pyppeteer import launch  # noqa: E402
 
 init(autoreset=True)
 
 
 # 定义正常模式用来下载7猫小说的函数
-def qimao_epub(url, path_choice):
+def qimao_epub(url, path_choice, config_path):
     book_id = re.search(r"/(\d+)/", url).group(1)
 
-    html1, html2 = asyncio.run(get_html(url))
+    try:
+        title, intro, author, img_url, chapters = p.get_book_info(url, mode='epub')
+    except Exception as e:
+        print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
+        return
 
     # 创建epub电子书
     book = epub.EpubBook()
-
-    # 解析网页源码
-    soup1 = BeautifulSoup(html1, "html.parser")
-    soup2 = BeautifulSoup(html2, "html.parser")
-
-    # 获取小说标题
-    title = soup1.find('div', {'class': 'title clearfix'}).find('span', {'class': 'txt'}).text
-    # , class_ = "info-name"
-    # 替换非法字符
-    title = p.rename(title)
-
-    # 获取小说信息
-    # info = soup.find("div", class_="page-header-info").get_text()
-
-    # 获取小说简介
-    intro = soup1.find('p', class_='intro').get_text().replace(' ', '\n')
-
-    # 获取小说作者
-    author_name = soup1.find('div', {'class': 'sub-title'}).find('a').text.strip()
-
-    # 获取封面链接
-    img_div = soup1.find('div', {'class': 'wrap-pic'})
-    img = img_div.find('img')
-    img_url = img['src']
 
     # 下载封面
     response = requests.get(img_url)
@@ -92,8 +45,18 @@ def qimao_epub(url, path_choice):
     # 设置书的元数据
     book.set_title(title)
     book.set_language('zh-CN')
-    book.add_author(author_name)
+    book.add_author(author)
     book.add_metadata('DC', 'description', intro)
+
+    yaml_data = {
+        'qmid': book_id
+    }
+    yaml_content = yaml.dump(yaml_data)
+
+    # 设置 qmid 元数据
+    yaml_item = epub.EpubItem(uid='yaml', file_name='metadata.yaml', media_type='application/octet-stream',
+                              content=yaml_content)
+    book.add_item(yaml_item)
 
     # intro chapter
     intro_e = epub.EpubHtml(title='Introduction', file_name='intro.xhtml', lang='hr')
@@ -102,7 +65,7 @@ def qimao_epub(url, path_choice):
                        f'<p>{intro}</p>')
     book.add_item(intro_e)
 
-    font_file = p.asset_path("Xingyv-Regular.ttf")
+    font_file = p.asset_path("HarmonyOS_Sans_SC_Regular.ttf")
     css1_file = p.asset_path("page_styles.css")
     css2_file = p.asset_path("stylesheet.css")
     # 打开资源文件
@@ -116,8 +79,8 @@ def qimao_epub(url, path_choice):
     # 创建一个EpubItem实例来存储你的字体文件
     font = epub.EpubItem(
         uid="font",
-        file_name="fonts/Xingyv-Regular.ttf",  # 这将是字体文件在epub书籍中的路径和文件名
-        media_type="application/x-font-ttf",
+        file_name="fonts/HarmonyOS_Sans_SC_Regular.ttf",  # 这将是字体文件在epub书籍中的路径和文件名
+        media_type="application/vnd.ms-opentype",
         content=font_content,
     )
     # 创建一个EpubItem实例来存储你的CSS样式
@@ -144,7 +107,6 @@ def qimao_epub(url, path_choice):
     book.spine = ['nav', intro_e]
 
     try:
-        chapters = soup2.select('li[class^="clearfix ref-catalog-li-"]')
 
         # 定义目录索引
         toc_index = ()
@@ -157,8 +119,10 @@ def qimao_epub(url, path_choice):
 
             result = p.get_api(book_id, chapter)
 
-            if result is None:
+            if result == "skip":
                 continue
+            elif result == "terminate":
+                break
             else:
                 chapter_title, chapter_content, chapter_id = result
 
@@ -224,49 +188,37 @@ def qimao_epub(url, path_choice):
                 print("您没有选择路径，请重新选择！")
                 continue
             break
+        # 询问用户是否保存此路径
+        cho = input("是否使用此路径覆盖此模式默认保存路径（y/n(d)）？")
+        if not cho or cho == "n":
+            pass
+        else:
+            # 提取文件夹路径
+            folder_path = os.path.dirname(file_path)
+            # 如果配置文件不存在，则创建
+            if not os.path.exists(config_path):
+                with open(config_path, "w") as c:
+                    json.dump({"path": {"epub": folder_path}}, c)
+            else:
+                with open(config_path, "r") as c:
+                    config = json.load(c)
+                config["path"]["epub"] = folder_path
+                with open(config_path, "w") as c:
+                    json.dump(config, c)
 
     elif path_choice == 0:
-        # 定义文件名
-        file_path = title + ".epub"
+        # 定义文件名，检测是否有默认路径
+        if not os.path.exists(config_path):
+            file_path = title + ".epub"
+        else:
+            with open(config_path, "r") as c:
+                config = json.load(c)
+            if "epub" in config["path"]:
+                file_path = os.path.join(config["path"]["epub"], f"{title}.epub")
+            else:
+                file_path = title + ".epub"
 
     epub.write_epub(file_path, book, {})
 
     print("文件已保存！")
     return
-
-
-async def get_html(url):
-
-    # 创建一个Pyppeteer的Browser实例
-    browser = await launch()
-
-    # 创建一个新的页面
-    page = await browser.newPage()
-
-    # 访问网页
-    await page.goto(url)
-
-    # 等待加载完成
-    await page.waitForSelector('.tab-inner')
-
-    # 获取切换前小说信息
-    html1 = await page.content()
-
-    # 模拟点击目录按钮，切换网页内容
-    # 在页面上执行JavaScript代码，模拟点击目录
-    await page.evaluate('''() => {
-            var elements = document.getElementsByClassName('tab-inner');
-            for(var i=0; i<elements.length; i++){
-                elements[i].click();
-            }
-        }''')
-
-    # 等待页面加载
-    await asyncio.sleep(1)
-
-    # 获取网页源代码
-    html2 = await page.content()
-
-    await browser.close()
-
-    return html1, html2

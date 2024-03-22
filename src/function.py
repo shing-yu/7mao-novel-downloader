@@ -1,34 +1,12 @@
-"""
-作者：星隅（xing-yv）
-
-版权所有（C）2023 星隅（xing-yv）
-
-本软件根据GNU通用公共许可证第三版（GPLv3）发布；
-你可以在以下位置找到该许可证的副本：
-https://www.gnu.org/licenses/gpl-3.0.html
-
-根据GPLv3的规定，您有权在遵循许可证的前提下自由使用、修改和分发本软件。
-请注意，根据许可证的要求，任何对本软件的修改和分发都必须包括原始的版权声明和GPLv3的完整文本。
-
-本软件提供的是按"原样"提供的，没有任何明示或暗示的保证，包括但不限于适销性和特定用途的适用性。作者不对任何直接或间接损害或其他责任承担任何责任。在适用法律允许的最大范围内，作者明确放弃了所有明示或暗示的担保和条件。
-
-免责声明：
-该程序仅用于学习和研究Python网络爬虫和网页处理技术，不得用于任何非法活动或侵犯他人权益的行为。使用本程序所产生的一切法律责任和风险，均由用户自行承担，与作者和项目协作者、贡献者无关。作者不对因使用该程序而导致的任何损失或损害承担任何责任。
-
-请在使用本程序之前确保遵守相关法律法规和网站的使用政策，如有疑问，请咨询法律顾问。
-
-无论您对程序进行了任何操作，请始终保留此信息。
-"""
-
-
 import qimao_normal as qn
-import qimao_debug as qd
 import qimao_batch as qb
 import qimao_chapter as qc
 import qimao_update as qu
 import qimao_epub as qe
+import public as p
 import os
 import re
+import time
 import requests
 import platform
 from sys import exit
@@ -46,25 +24,30 @@ return_info = None
 user_folder = os.path.expanduser("~")
 data_path = os.path.join(user_folder, "qimao_data")
 eula_path = os.path.join(data_path, "eula.txt")
+config_path = os.path.join(data_path, "config.json")
 eula_url = "https://gitee.com/xingyv1024/7mao-novel-downloader/raw/main/EULA.md"
 license_url = "https://gitee.com/xingyv1024/7mao-novel-downloader/raw/main/LICENSE.md"
 license_url_zh = "https://gitee.com/xingyv1024/7mao-novel-downloader/raw/main/LICENSE-ZH.md"
 os.makedirs(data_path, exist_ok=True)
 book_id = None
 start_chapter_id = "0"
+proxies = {
+    "http": None,
+    "https": None
+}
 
 
 # 用户须知
 def print_usage():
-    print("欢迎使用此程序！")
+    print("欢迎使用", end=" ")
+    print(Fore.YELLOW + Style.BRIGHT + "七猫小说下载工具")
     print("""用户须知：
-此程序开源免费，如果您付费获取，那么您已经被骗了。
-本程序灵感及api来自于ibxff所作用户脚本，脚本链接请到更多中查看；
-为保护此程序不被用于不良商业行为，此程序使用GPLv3许可证，
+此程序开源免费，如果您付费获取，请您立即举报商家。
+本程序灵感及api来自于ibxff所作用户脚本，详情请到更多中查看；；
+此程序使用GPLv3开源许可证发布。
 
-您可以自由地复制、修改和分发本程序副本，但不能销售它。
-您可以使用此程序提供有偿代下载服务，但在提供服务的同时，必须向服务的接收者提供此程序的获取方式，
-以便他们可以自由使用、修改和分发该软件，同时也必须遵守GPLv3协议的所有其他规定。
+使用本程序代表您已阅读并同意本程序最终用户许可协议(EULA)（初次启动时已展示，可在更多中再次阅读）。
+（包括不得销售此程序副本，提供代下载服务需明确告知用户开源地址等）
 
 QQ： 外1群：149050832  外2群：667146297
 如果想要指定开始下载的章节，请在输入目录页链接时按Ctrl+C。
@@ -89,14 +72,13 @@ def start():
         print("请选择以下操作：")
         print("1. 进入正常模式")
         print("2. 进入自动批量模式")
-        print("3. 进入分章保存模式(测试)")
-        print("4. 进入Debug模式")
-        print("5. 进入Epub电子书模式(测试)")
+        print("3. 进入分章保存模式")
+        print("5. 进入Epub电子书模式")
         print("6. 查看更多")
-        print("7. 更新已下载的小说")
+        print("7. 更新已下载的小说(已支持epub)")
         print("8. 查看贡献（赞助）者名单")
         print("9. 退出程序")
-        print("10. 撤回同意")
+        print("10. 撤回同意/重置默认路径")
         choice = input("请输入您的选择（1~10）:（默认“1”）\n")
 
         # 通过用户选择，决定模式，给mode赋值
@@ -116,12 +98,7 @@ def start():
         elif choice == '3':
             mode = 3
             clear_screen()
-            print("您已进入分章保存模式(测试):")
-            break
-        elif choice == '4':
-            mode = 1
-            clear_screen()
-            print("您已进入Debug模式，将会给出更多选项和调试信息。\n")
+            print("您已进入分章保存模式:")
             break
         elif choice == '5':
             mode = 4
@@ -154,6 +131,8 @@ gitee地址:https://gitee.com/xingyv1024/7mao-novel-downloader
 作者B站主页:https://space.bilibili.com/1920711824
 提出反馈:https://github.com/xing-yv/7mao-novel-downloader/issues/new
 (请在右侧Label处选择issue类型以得到更快回复)
+
+最终用户许可协议(EULA)：https://gitee.com/xingyv1024/fanqie-novel-download/blob/main/EULA.md
 """)
             input("按Enter键返回...")
             clear_screen()
@@ -167,7 +146,7 @@ gitee地址:https://gitee.com/xingyv1024/7mao-novel-downloader
             clear_screen()
             contributors_url = 'https://gitee.com/xingyv1024/7mao-novel-downloader/raw/main/CONTRIBUTORS.md'
             try:
-                contributors = requests.get(contributors_url, timeout=5)
+                contributors = requests.get(contributors_url, timeout=5, proxies=proxies)
 
                 # 检查响应状态码
                 if contributors.status_code == 200:
@@ -199,26 +178,27 @@ gitee地址:https://gitee.com/xingyv1024/7mao-novel-downloader
             else:
                 clear_screen()
                 continue
-
         elif choice == '10':
             clear_screen()
-            while True:
-                sure = input("您确定要撤回同意吗(yes/no)(默认:no): ")
-                if not sure:
-                    sure = "no"
-                if sure.lower() == "yes":
-                    break
-                elif sure.lower() == "no":
-                    flag2 = False
-                    break
+            cho = input("1-> 撤回同意  2-> 重置默认路径\n")
+            if cho == '1':
+                while True:
+                    sure = input("您确定要撤回同意吗(yes/no)(默认:no): ")
+                    if not sure:
+                        sure = "no"
+                    if sure.lower() == "yes":
+                        break
+                    elif sure.lower() == "no":
+                        flag2 = False
+                        break
+                    else:
+                        print("输入无效，请重新输入。")
+                if flag2 is False:
+                    clear_screen()
+                    continue
                 else:
-                    print("输入无效，请重新输入。")
-            if flag2 is False:
-                clear_screen()
-                continue
-            else:
-                with open(eula_path, "w", encoding="utf-8") as f:
-                    eula_txt = f"""eula_url: {eula_url}
+                    with open(eula_path, "w", encoding="utf-8") as f:
+                        eula_txt = f"""eula_url: {eula_url}
 license_url: {license_url}
 agreed: 
 no
@@ -226,11 +206,19 @@ eula_date:
 None
 
 """
-                    f.write(eula_txt)
-                print("您已撤回同意")
+                        f.write(eula_txt)
+                    print("您已撤回同意")
+                    input("按Enter键退出程序...")
+                    exit(0)
+            elif cho == '2':
+                os.remove(config_path)
+                print("已重置默认路径")
                 input("按Enter键退出程序...")
                 exit(0)
-
+            else:
+                print("输入无效")
+                input("按Enter键退出程序...")
+                exit(0)
         else:
             print("无效的选择，请重新输入。")
     get_parameter(retry=False)
@@ -242,9 +230,9 @@ def get_parameter(retry):
     global type_path_num
     global book_id
     global start_chapter_id
+    global mode
 
     page_url = None
-
     # 判断是否是批量下载模式
     if mode == 2:
         if not os.path.exists('urls.txt'):
@@ -252,44 +240,49 @@ def get_parameter(retry):
                 pass
         if retry is True:
             print("您在urls.txt中输入的内容有误，请重新输入")
-            print("请重新在程序同文件夹(或执行目录)下的urls.txt中，以每行一个的形式写入目录页链接")
+            print("请重新在程序同文件夹(或执行目录)下的urls.txt中，以每行一个的形式写入链接/ID")
         elif retry is False:
-            print("请在程序同文件夹(或执行目录)下的urls.txt中，以每行一个的形式写入目录页链接")
+            print("请在程序同文件夹(或执行目录)下的urls.txt中，以每行一个的形式写入链接/ID")
+            try:
+                os.startfile('urls.txt')
+                print("您正在使用Windows，文件应该已自动弹出窗口")
+            except AttributeError:
+                print("您正在使用非Windows系统，请手动打开文件")
         input("完成后请按Enter键继续:")
     else:
         # 不是则让用户输入小说目录页的链接
         while True:
             try:
-                page_url = input("请输入目录页或手机端分享链接（或书籍ID）：\n")
-
-                # 预留七猫小说判断
-                # if "qimao" in page_url:
-                #   if mode == 0:
-                #      mode = 2
-                #   elif mode == 1:
-                #      mode = 3
-                # elif "qimao" in page_url:
+                page_url = input("请输入链接/ID，或输入s以进入搜索模式：\n")
 
                 # 检查 url 类型
-                try:
-                    if page_url.isdigit():
-                        book_id = page_url
-                        page_url = "https://www.qimao.com/shuku/" + book_id + "/"
-                        break
+                if page_url.isdigit():
+                    book_id = page_url
+                    page_url = "https://www.qimao.com/shuku/" + book_id + "/"
+                    break
 
-                    elif "www.qimao.com/shuku/" in page_url:
-                        book_id = re.search(r"www.qimao.com/shuku/(\d+)", page_url).group(1)
-                        page_url = "https://www.qimao.com/shuku/" + book_id + "/"
-                        break  # 如果是正确的链接，则退出循环
+                elif "www.qimao.com/shuku/" in page_url:
+                    book_id = re.search(r"www.qimao.com/shuku/(\d+)", page_url).group(1)
+                    page_url = "https://www.qimao.com/shuku/" + book_id + "/"
+                    break  # 如果是正确的链接，则退出循环
 
-                    elif "app-share.wtzw.com" in page_url:
-                        book_id = re.search(r"article-detail/(\d+)", page_url).group(1)
-                        page_url = "https://www.qimao.com/shuku/" + book_id + "/"
-                        break
-                    else:
-                        print(Fore.YELLOW + Style.BRIGHT + "请输入正确的小说目录页面或手机端分享链接（或书籍ID）")
-                except AttributeError:
-                    print(Fore.YELLOW + Style.BRIGHT + "请输入正确的小说目录页面或手机端分享链接（或书籍ID）")
+                elif "app-share.wtzw.com" in page_url:
+                    book_id = re.search(r"article-detail/(\d+)", page_url).group(1)
+                    page_url = "https://www.qimao.com/shuku/" + book_id + "/"
+                    break
+                elif page_url.lower() == 's':
+                    print("正在进入搜索模式...")
+                    book_id = search()
+                    if book_id is None:
+                        print(Fore.YELLOW + Style.BRIGHT + "\n您取消了搜索，请重新输入。")
+                        continue
+                    page_url = "https://www.qimao.com/shuku/" + book_id + "/"
+                    break
+                else:
+                    print(Fore.YELLOW + Style.BRIGHT + "无法识别的内容，请重新输入。")
+            except AttributeError:
+                print(Fore.YELLOW + Style.BRIGHT + "链接无法识别，请检查并重新输入。")
+                continue
             # 当用户按下Ctrl+C是，可以自定义起始章节id
             except KeyboardInterrupt:
                 while True:
@@ -298,7 +291,8 @@ def get_parameter(retry):
                         break
                     start_chapter_id = input("您已按下Ctrl+C，请输入起始章节的id(输入help以查看帮助):\n")
                     if start_chapter_id == 'help':
-                        print("\n打开小说章节阅读界面，上方链接中第二串的数字即为章节id\n请输入您想要开始下载的章节的id\n")
+                        print(
+                            "\n打开小说章节阅读界面，上方链接中第二串的数字即为章节id\n请输入您想要开始下载的章节的id\n")
                         continue
                     elif start_chapter_id.isdigit():
                         break
@@ -351,11 +345,11 @@ def get_parameter(retry):
         elif type_path.lower() == "no":
             type_path_num = 0
             if mode == 2 or mode == 3:
-                print("您未选择自定义保存路径，请在获取完成后到程序文件夹下output文件夹寻找文件。")
-                print("(如果您在命令行中执行程序，请到执行目录下寻找output文件夹)")
+                print("您未选择自定义保存路径，请在获取完成后到默认路径下output文件夹寻找文件。")
+                print("(初始默认路径为程序所在文件夹，命令行为执行目录)")
             else:
-                print("您未选择自定义保存路径，请在获取完成后到程序相同文件夹下寻找文件。")
-                print("(如果您在命令行中执行程序，请到执行目录下寻找文件)")
+                print("您未选择自定义保存路径，请在获取完成后到默认路径下寻找文件。")
+                print("(初始默认路径为程序所在文件夹，命令行为执行目录)")
             break
 
         else:
@@ -421,19 +415,20 @@ def perform_user_mode_action():
     # 判断用户处于什么模式
     if mode == 0:
         # 调用7猫正常模式函数
-        return_info = qn.qimao_n(page_url, txt_encoding, type_path_num, data_path, start_chapter_id)
-    elif mode == 1:
-        # 调用7猫调试模式函数
-        return_info = qd.qimao_d(page_url, txt_encoding, type_path_num, data_path, start_chapter_id)
+        return_info = qn.qimao_n(page_url, txt_encoding, type_path_num, data_path, start_chapter_id,
+                                 config_path)
     elif mode == 2:
         # 调用7猫批量模式函数
-        return_info = qb.qimao_b(txt_encoding, type_path_num, data_path)
+        return_info = qb.qimao_b(txt_encoding, type_path_num, data_path,
+                                 config_path)
     elif mode == 3:
         # 调用7猫分章模式函数
-        return_info = qc.qimao_c(page_url, txt_encoding, type_path_num, start_chapter_id)
+        return_info = qc.qimao_c(page_url, txt_encoding, type_path_num, start_chapter_id,
+                                 config_path)
     elif mode == 4:
         # 调用7猫epub电子书模式函数
-        return_info = qe.qimao_epub(page_url, type_path_num)
+        return_info = qe.qimao_epub(page_url, type_path_num,
+                                    config_path)
 
 
 # 检查更新
@@ -454,7 +449,7 @@ def check_update(now_version):
     # noinspection PyBroadException
     try:
         # 发送GET请求以获取最新的发行版信息
-        response = requests.get(api_url)
+        response = requests.get(api_url, timeout=5, proxies=proxies)
 
         if response.status_code != 200:
             print(f"请求失败，状态码：{response.status_code}")
@@ -467,7 +462,52 @@ def check_update(now_version):
             print(f"最新的发行版是：{latest_version}")
             result = compare_versions(now_version, latest_version)
             if result == -1:
-                print("检测到新版本\n更新可用！请到 https://gitee.com/xingyv1024/7mao-novel-downloader/releases 下载最新版")
+                # 检测是否是重要更新
+                if "!important!" in release_describe:
+                    # 如果是，则弹窗提示
+                    import tkinter as tk
+                    from tkinter import messagebox
+                    root = tk.Tk()
+
+                    # 点击确认跳转到下载页面
+                    def open_url():
+                        import webbrowser
+                        webbrowser.open("https://gitee.com/xingyv1024/7mao-novel-downloader/releases/latest")
+                        exit(0)
+
+                    root.withdraw()
+                    result = messagebox.askokcancel("重要更新",
+                                                    f"检测到重要更新！\n更新内容:\n{release_describe}\n点击确定前往下载",
+                                                    icon="warning")
+                    if result:
+                        open_url()
+                    root.destroy()
+                    return
+                elif "!very important!" in release_describe:
+                    # 如果是，则弹窗提示
+                    import tkinter as tk
+                    from tkinter import messagebox
+                    root = tk.Tk()
+
+                    # 点击确认跳转到下载页面
+                    def open_url():
+                        import webbrowser
+                        webbrowser.open("https://gitee.com/xingyv1024/7mao-novel-downloader/releases/latest")
+                        exit(0)
+
+                    root.withdraw()
+                    # 此更新不可取消
+                    messagebox.showinfo("非常重要更新",
+                                        f"检测到非常重要更新！\n更新内容:\n{release_describe}\n点击确定前往下载")
+                    open_url()
+                    root.destroy()
+                    exit(0)
+                elif "|notification|" in release_describe:
+                    print(f"检测到通知：\n{release_describe}")
+                    input("按Enter键继续...\n")
+                    return
+                print(
+                    "检测到新版本\n更新可用！请到 https://gitee.com/xingyv1024/7mao-novel-downloader/releases/latest 下载最新版")
                 print(f"更新内容:\n{release_describe}")
                 input("按Enter键继续...\n")
             else:
@@ -483,7 +523,6 @@ def check_update(now_version):
 
 
 def compare_versions(version1, version2):
-
     # 使用packaging模块进行版本比较
     v1 = version.parse(version1)
     v2 = version.parse(version2)
@@ -512,7 +551,7 @@ def check_eula():
         eula_date_old = eula_txt.splitlines()[5]
         # noinspection PyBroadException
         try:
-            eula_text = requests.get(eula_url, timeout=10).text
+            eula_text = requests.get(eula_url, timeout=10, proxies=proxies).text
         except Exception:
             print("获取最终用户许可协议失败，请检查网络连接")
             input("按Enter键继续...\n")
@@ -558,9 +597,9 @@ eula_date:
 def agree_eula():
     # noinspection PyBroadException
     try:
-        eula_text = requests.get(eula_url, timeout=10).text
-        license_text = requests.get(license_url, timeout=10).text
-        license_text_zh = requests.get(license_url_zh, timeout=10).text
+        eula_text = requests.get(eula_url, timeout=10, proxies=proxies).text
+        license_text = requests.get(license_url, timeout=10, proxies=proxies).text
+        license_text_zh = requests.get(license_url_zh, timeout=10, proxies=proxies).text
     except Exception:
         print("获取最终用户许可协议失败，请检查网络连接")
         input("按Enter键继续...\n")
@@ -606,3 +645,98 @@ eula_date:
         else:
             clear_screen()
             print("输入无效，请重新输入。")
+
+
+def search():
+    try:
+
+        while True:
+
+            key = input("请输入搜索关键词（按下Ctrl+C返回）：")
+
+            # 获取搜索结果列表
+            params_ = {
+                'extend': '',
+                'tab': '0',
+                'gender': '0',
+                'refresh_state': '8',
+                'page': '1',
+                'wd': f'{key}',
+                'is_short_story_user': '0'
+            }
+            response = requests.get("https://api-bc.wtzw.com/search/v1/words", params=p.sign_url_params(params_),
+                                    headers=p.get_headers("00000000")).json()
+            books = response['data']['books']
+
+            for i, book in enumerate(books):
+                try:
+                    print(f"{i + 1}. 名称：{book['original_title']} 作者：{book['original_author']} "
+                          f"ID：{book['id']} 字数：{book['words_num']}")
+                except KeyError:
+                    break
+
+            while True:
+                choice_ = input("请选择一个结果, 输入r以重新搜索：")
+                if choice_ == "r":
+                    clear_screen()
+                    break
+                elif choice_.isdigit():
+                    choice = int(choice_)
+                    if choice > len(books):
+                        print("输入无效，请重新输入。")
+                        continue
+                    chosen_book = books[choice - 1]
+                    return chosen_book['id']
+                else:
+                    print("输入无效，请重新输入。")
+                    continue
+    except KeyboardInterrupt:
+        return
+    # except Exception as e:
+    #     print(f"发生错误: {e}")
+    #     return
+
+
+def clear_stdin():
+    try:
+        import msvcrt
+        while msvcrt.kbhit():
+            msvcrt.getch()
+    except ImportError:
+        import sys
+        import termios
+        termios.tcflush(sys.stdin, termios.TCIOFLUSH)
+
+
+sock = None
+
+
+def check_instance():
+    global sock
+    # 通过端口检查是否有其他实例正在运行
+    import socket
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind(('localhost', 52511))
+    except socket.error:
+        print("另一个程序进程已经在运行中，请勿重复运行")
+        print("将在5秒后退出程序")
+        for i in range(5, 0, -1):
+            print(f"{i}")
+            time.sleep(1)
+        exit(1)
+
+
+def clear_old():
+    # 清除旧版本pyppeteer残留
+    if platform.system() == "Windows":
+        if os.path.exists(os.path.join(user_folder, "AppData", "Local", "pyppeteer")):
+            import shutil
+            shutil.rmtree(os.path.join(user_folder, "AppData", "Local", "pyppeteer"))
+            print("已自动为您清除旧版本pyppeteer残留")
+    else:
+        if os.path.exists(os.path.join(user_folder, ".pyppeteer")):
+            import shutil
+            shutil.rmtree(os.path.join(user_folder, ".pyppeteer"))
+            print("已自动为您清除旧版本pyppeteer残留")

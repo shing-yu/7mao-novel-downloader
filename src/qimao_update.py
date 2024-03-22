@@ -1,27 +1,4 @@
-"""
-作者：星隅（xing-yv）
-
-版权所有（C）2023 星隅（xing-yv）
-
-本软件根据GNU通用公共许可证第三版（GPLv3）发布；
-你可以在以下位置找到该许可证的副本：
-https://www.gnu.org/licenses/gpl-3.0.html
-
-根据GPLv3的规定，您有权在遵循许可证的前提下自由使用、修改和分发本软件。
-请注意，根据许可证的要求，任何对本软件的修改和分发都必须包括原始的版权声明和GPLv3的完整文本。
-
-本软件提供的是按"原样"提供的，没有任何明示或暗示的保证，包括但不限于适销性和特定用途的适用性。作者不对任何直接或间接损害或其他责任承担任何责任。在适用法律允许的最大范围内，作者明确放弃了所有明示或暗示的担保和条件。
-
-免责声明：
-该程序仅用于学习和研究Python网络爬虫和网页处理技术，不得用于任何非法活动或侵犯他人权益的行为。使用本程序所产生的一切法律责任和风险，均由用户自行承担，与作者和项目协作者、贡献者无关。作者不对因使用该程序而导致的任何损失或损害承担任何责任。
-
-请在使用本程序之前确保遵守相关法律法规和网站的使用政策，如有疑问，请咨询法律顾问。
-
-无论您对程序进行了任何操作，请始终保留此信息。
-"""
-
 # 导入必要的模块
-import asyncio
 import re
 import os
 import time
@@ -30,7 +7,11 @@ from tqdm import tqdm
 import hashlib
 import public as p
 from colorama import Fore, Style, init
-from get_bookinfo import get_book_info
+
+import requests
+from requests.exceptions import Timeout
+import yaml
+from ebooklib import epub
 
 init(autoreset=True)
 
@@ -40,7 +21,7 @@ def qimao_update(data_folder):
 
     # 请用户选择更新模式
     while True:
-        update_mode = input("请选择更新模式:1 -> 单个更新 2-> 批量更新\n")
+        update_mode = input("请选择更新模式:1 -> 单个更新 2-> 批量更新 3-> epub批量\n")
         if not update_mode:
             update_mode = '1'
         if update_mode == '1':
@@ -48,6 +29,9 @@ def qimao_update(data_folder):
             return
         elif update_mode == '2':
             break
+        elif update_mode == '3':
+            epub_batch_update()
+            return
         else:
             print("无效的选择，请重新输入。")
 
@@ -128,6 +112,10 @@ def qimao_update(data_folder):
             result = download_novel(url, encoding, last_chapter_id, txt_file_path)
             if result == "DN":
                 print(f"{novel_name} 已是最新，不需要更新。\n")
+            elif result == "Timeout":
+                print(Fore.RED + Style.BRIGHT + "更新失败")
+            elif result == "Not Found":
+                print(Fore.RED + Style.BRIGHT + "更新失败")
             else:
                 print(f"{novel_name} 已更新完成。\n")
                 # 计算文件 sha256 值
@@ -158,15 +146,17 @@ def download_novel(url, encoding, start_chapter_id, txt_file_path):
     book_id = re.search(r"/(\d+)/", url).group(1)
 
     # 调用异步函数获取7猫信息（模拟浏览器）
-    book_info = asyncio.run(get_book_info(url))
-    chapters = book_info['chapters']
+    try:
+        _, _, chapters = p.get_book_info(url)
+    except Exception as e:
+        print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
+        return
 
     last_chapter_id = None
     # 找到起始章节的索引
     start_index = 0
     for i, chapter in enumerate(chapters):
-        chapter_url_tmp = chapter.find("a")["href"]  # 已删除不必要的urljoin
-        chapter_id_tmp = re.search(r"/(\d+)-(\d+)/", chapter_url_tmp).group(2)
+        chapter_id_tmp = chapter["id"]
         if chapter_id_tmp == start_chapter_id:  # 更新函数，所以前进一个章节
             start_index = i + 1
         last_chapter_id = chapter_id_tmp
@@ -177,44 +167,55 @@ def download_novel(url, encoding, start_chapter_id, txt_file_path):
 
     # 打开文件
     with open(txt_file_path, 'ab') as f:
-        # 从起始章节开始遍历每个章节链接
-        for chapter in tqdm(chapters[start_index:]):
-            time.sleep(0.25)
-            result = p.get_api(book_id, chapter)
+        chapter_id_now = start_chapter_id
+        try:
+            # 从起始章节开始遍历每个章节链接
+            for chapter in tqdm(chapters[start_index:], desc="更新进度"):
+                result = p.get_api(book_id, chapter)
 
-            if result is None:
-                continue
-            else:
-                chapter_title, chapter_text, chapter_id = result
+                if result == "skip":
+                    continue
+                elif result == "terminate":
+                    break
+                else:
+                    chapter_title, chapter_text, chapter_id_now = result
 
-            # 去除其他 html 标签
-            # chapter_text = re.sub(r"</?\w+>", "", chapter_text)
-            #
-            # chapter_text = p.fix_publisher(chapter_text)
+                # 在小说内容字符串中添加章节标题和内容
+                content = f"\n\n\n{chapter_title}\n\n{chapter_text}"
 
-            # 在小说内容字符串中添加章节标题和内容
-            content = f"\n\n\n{chapter_title}\n\n{chapter_text}"
+                # 根据编码转换小说内容字符串为二进制数据
+                data = content.encode(encoding, errors='ignore')
 
-            # 根据编码转换小说内容字符串为二进制数据
-            data = content.encode(encoding, errors='ignore')
+                # 将数据追加到文件中
+                f.write(data)
 
-            # 将数据追加到文件中
-            f.write(data)
+                # 打印进度信息
+                tqdm.write(f"已增加: {chapter_title}")
 
-            # 打印进度信息
-            tqdm.write(f"已增加: {chapter_title}")
+        except BaseException as e:
+
+            # 捕获所有异常，及时保存文件
+            print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
+            print(Fore.RED + Style.BRIGHT + f"更新已被中断")
+
+            return chapter_id_now
 
     # 返回更新完成
     return last_chapter_id
 
 
 def onefile(data_folder):
-
     txt_file_path = None
     while True:
+        m_epub = False
         # 提示用户输入路径
-        user_path = input("请将要更新的小说拖动到窗口中，然后按 Enter 键:\n")
-        if '.txt' not in user_path:
+        user_path = input("请将要更新的小说拖动到窗口中，然后按 Enter 键:（支持新版本下载的epub）\n")
+        if ".txt" in user_path:
+            pass
+        elif ".epub" in user_path:
+            m_epub = True
+            print(Fore.YELLOW + Style.BRIGHT + "EPUB更新模式处于测试阶段，如发现问题请及时反馈。")
+        else:
             print("路径不正确，请重新输入")
             continue
 
@@ -226,6 +227,10 @@ def onefile(data_folder):
         else:
             print("文件不存在，请重新输入")
             continue
+
+    if m_epub is True:
+        qimao_epub_update(user_path)
+        return
 
     txt_file = os.path.basename(txt_file_path)
     # # 寻找book_id
@@ -272,22 +277,22 @@ def onefile(data_folder):
                 while True:
                     upd_choice = input(f"这往往意味着文件已被修改，是否继续更新？(yes/no):")
                     if upd_choice == "yes":
-                        skip_this = 0
                         break
                     elif upd_choice == "no":
-                        skip_this = 1
-                        break
+                        print(Fore.RED + Style.BRIGHT + "更新已取消")
+                        return
                     else:
                         print("输入错误，请重新输入")
-                if skip_this == 1:
-                    print(Fore.RED + Style.BRIGHT + f"《{novel_name}》的更新已取消")
-                    return
             else:
                 print(Fore.GREEN + Style.BRIGHT + "hash校验通过！")
         print(f"上次更新时间{last_update_time}")
         result = download_novel(url, encoding, last_chapter_id, txt_file_path)
         if result == "DN":
             print(f"{novel_name} 已是最新，不需要更新。\n")
+        elif result == "Timeout":
+            print(Fore.RED + Style.BRIGHT + "更新失败")
+        elif result == "Not Found":
+            print(Fore.RED + Style.BRIGHT + "更新失败")
         else:
             print(f"{novel_name} 已更新完成。\n")
             # 计算文件 sha256 值
@@ -305,3 +310,211 @@ def onefile(data_folder):
                 file.write(new_content)
     else:
         print(f"{txt_file} 不是通过此工具下载，无法更新")
+
+
+def epub_batch_update():
+    print(Fore.YELLOW + Style.BRIGHT + "EPUB更新模式处于测试阶段，如发现问题请及时反馈。")
+    # 指定小说文件夹
+    novel_folder = "epub更新"
+
+    os.makedirs(novel_folder, exist_ok=True)
+
+    input("请在程序目录下”epub更新“文件夹内放入需更新的epub文件\n按 Enter 键继续...")
+
+    novel_files = [file for file in os.listdir(novel_folder) if file.endswith(".epub")]
+
+    if not novel_files:
+        print("没有可更新的文件")
+        return
+
+    for epub_file in novel_files:
+        print(f"正在更新: {epub_file}")
+        epub_file_path = os.path.join(novel_folder, epub_file)
+        # noinspection PyBroadException
+        try:
+            qimao_epub_update(epub_file_path)
+        except Exception:
+            # 导入打印异常信息的模块
+            import traceback
+            # 打印异常信息
+            print(Fore.RED + Style.BRIGHT + "发生错误，请保存以下信息并联系开发者：")
+            traceback.print_exc()
+
+
+def qimao_epub_update(book_path):
+
+    # 读取需要更新的epub文件
+    book_o = epub.read_epub(book_path, {'ignore_ncx': True})
+
+    # 创建epub电子书
+    book = epub.EpubBook()
+
+    # 获取book_id
+    try:
+        yaml_item = book_o.get_item_with_id('yaml')
+        yaml_content = yaml_item.get_content().decode('utf-8')
+        book_id = yaml.safe_load(yaml_content)['qmid']
+    except AttributeError:
+        print('当前仅支持更新2.10版本及以上下载的epub小说')
+        return
+
+    url = f"https://www.qimao.com/shuku/{book_id}/"
+
+    try:
+        title, intro, author, img_url, chapters = p.get_book_info(url, mode='epub')
+    except Exception as e:
+        print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
+        return
+
+    # 下载封面
+    response = requests.get(img_url)
+    # 获取图像的内容
+    img_data = response.content
+
+    # 保存图像到本地文件
+    with open("cover.jpg", "wb") as f:
+        f.write(img_data)
+
+    # 创建一个封面图片
+    book.set_cover("image.jpg", open('cover.jpg', 'rb').read())
+
+    # 删除封面
+    os.remove('cover.jpg')
+
+    # 设置书的元数据
+    book.set_title(title)
+    book.set_language('zh-CN')
+    book.add_author(author)
+    book.add_metadata('DC', 'description', intro)
+
+    yaml_data = {
+        'qmid': book_id
+    }
+    yaml_content = yaml.dump(yaml_data)
+
+    # 设置 qmid 元数据
+    yaml_item = epub.EpubItem(uid='yaml', file_name='metadata.yaml', media_type='application/octet-stream',
+                              content=yaml_content)
+    book.add_item(yaml_item)
+
+    # intro chapter
+    intro_e = epub.EpubHtml(title='Introduction', file_name='intro.xhtml', lang='hr')
+    intro_e.content = (f'<img src="image.jpg" alt="Cover Image"/>'
+                       f'<h1>{title}</h1>'
+                       f'<p>{intro}</p>')
+    book.add_item(intro_e)
+
+    font_file = p.asset_path("HarmonyOS_Sans_SC_Regular.ttf")
+    css1_file = p.asset_path("page_styles.css")
+    css2_file = p.asset_path("stylesheet.css")
+    # 打开资源文件
+    with open(font_file, 'rb') as f:
+        font_content = f.read()
+    with open(css1_file, 'r', encoding='utf-8') as f:
+        css1_content = f.read()
+    with open(css2_file, 'r', encoding='utf-8') as f:
+        css2_content = f.read()
+
+    # 创建一个EpubItem实例来存储你的字体文件
+    font = epub.EpubItem(
+        uid="font",
+        file_name="fonts/HarmonyOS_Sans_SC_Regular.ttf",  # 这将是字体文件在epub书籍中的路径和文件名
+        media_type="application/vnd.ms-opentype",
+        content=font_content,
+    )
+    # 创建一个EpubItem实例来存储你的CSS样式
+    nav_css1 = epub.EpubItem(
+        uid="style_nav1",
+        file_name="style/page_styles.css",  # 这将是CSS文件在epub书籍中的路径和文件名
+        media_type="text/css",
+        content=css1_content,
+    )
+    nav_css2 = epub.EpubItem(
+        uid="style_nav2",
+        file_name="style/stylesheet.css",  # 这将是CSS文件在epub书籍中的路径和文件名
+        media_type="text/css",
+        content=css2_content,
+    )
+
+    # 将资源文件添加到书籍中
+    book.add_item(font)
+    book.add_item(nav_css1)
+    book.add_item(nav_css2)
+
+    # 创建索引
+    book.toc = (epub.Link('intro.xhtml', '简介', 'intro'),)
+    book.spine = ['nav', intro_e]
+
+    try:
+
+        # 定义目录索引
+        toc_index = ()
+
+        chapter_id_name = 0
+        # 遍历每个章节链接
+        for chapter in tqdm(chapters):
+            chapter_id_name += 1
+            context = book_o.get_item_with_href(f'chapter_{chapter_id_name}.xhtml')
+            if context is not None:
+                chapter_title = chapter['title']
+                # 提取文章标签中的文本
+                chapter_text = re.search(r"<body>([\s\S]*?)</body>", context.get_content().decode()).group(1)
+                chapter_text = re.sub(r'<h2.*?>.*?</h2>', '', chapter_text)
+            else:
+                time.sleep(0.25)
+                result = p.get_api(book_id, chapter)
+
+                if result == "skip":
+                    continue
+                elif result == "terminate":
+                    break
+                else:
+                    chapter_title, chapter_content, chapter_id = result
+
+                # # 提取文章标签中的文本
+                # chapter_text = re.search(r"<article>([\s\S]*?)</article>", chapter_content).group(1)
+                chapter_text = re.sub(r'\n', '</p><p>', chapter_content)
+                chapter_text = "<p>" + chapter_text + "</p>"
+
+            # 在小说内容字符串中添加章节标题和内容
+            # 在小说内容字符串中添加章节标题和内容
+            text = epub.EpubHtml(title=chapter_title, file_name=f'chapter_{chapter_id_name}.xhtml')
+            text.add_item(nav_css1)
+            text.add_item(nav_css2)
+            text.content = (f'<h2 class="titlecss">{chapter_title}</h2>'
+                            f'{chapter_text}')
+
+            toc_index = toc_index + (text,)
+            book.spine.append(text)
+
+            # 加入epub
+            book.add_item(text)
+
+            # 打印进度信息
+            tqdm.write(f"已获取 {chapter_title}")
+
+        # 加入书籍索引
+        book.toc = toc_index
+    except BaseException as e:
+        # 捕获所有异常
+        print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
+        return
+
+    # 添加 navigation 文件
+    book.add_item(epub.EpubNcx())
+    book.add_item(epub.EpubNav())
+
+    yaml_data = {
+        'qmid': book_id
+    }
+    yaml_content = yaml.dump(yaml_data)
+
+    # 设置 fqid 元数据
+    yaml_item = epub.EpubItem(uid='yaml', file_name='metadata.yaml', media_type='application/octet-stream',
+                              content=yaml_content)
+    book.add_item(yaml_item)
+
+    epub.write_epub(book_path, book, {})
+
+    print("文件已保存！更新结束！")
+    return

@@ -1,62 +1,32 @@
-"""
-作者：星隅（xing-yv）
-
-版权所有（C）2023 星隅（xing-yv）
-
-本软件根据GNU通用公共许可证第三版（GPLv3）发布；
-你可以在以下位置找到该许可证的副本：
-https://www.gnu.org/licenses/gpl-3.0.html
-
-根据GPLv3的规定，您有权在遵循许可证的前提下自由使用、修改和分发本软件。
-请注意，根据许可证的要求，任何对本软件的修改和分发都必须包括原始的版权声明和GPLv3的完整文本。
-
-本软件提供的是按"原样"提供的，没有任何明示或暗示的保证，包括但不限于适销性和特定用途的适用性。作者不对任何直接或间接损害或其他责任承担任何责任。在适用法律允许的最大范围内，作者明确放弃了所有明示或暗示的担保和条件。
-
-免责声明：
-该程序仅用于学习和研究Python网络爬虫和网页处理技术，不得用于任何非法活动或侵犯他人权益的行为。使用本程序所产生的一切法律责任和风险，均由用户自行承担，与作者和项目协作者、贡献者无关。作者不对因使用该程序而导致的任何损失或损害承担任何责任。
-
-请在使用本程序之前确保遵守相关法律法规和网站的使用政策，如有疑问，请咨询法律顾问。
-
-无论您对程序进行了任何操作，请始终保留此信息。
-"""
-
-
 # 导入必要的模块
 import re
 import os
 import time
+import json
 from tqdm import tqdm
 import public as p
-import asyncio
-from debug_bookinfo import get_book_info
+from colorama import Fore, Style, init
+
+init(autoreset=True)
 
 
 # 定义分章节保存模式用来下载7猫小说的函数
-def qimao_c(url, encoding, path_choice, start_chapter_id):
+def qimao_c(url, encoding, path_choice, start_chapter_id,
+            config_path):
     book_id = re.search(r"/(\d+)/", url).group(1)
 
     # 调用异步函数获取7猫信息（模拟浏览器）
-    book_info = asyncio.run(get_book_info(url))
-    title = book_info['title']
-    info = book_info['info']
-    intro = book_info['intro']
-    chapters = book_info['chapters']
+    try:
+        title, introduction, chapters = p.get_book_info(url)
+    except Exception as e:
+        print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
+        return
 
     # 获取保存路径
-    book_folder = get_folder_path(path_choice, title)
+    book_folder = get_folder_path(path_choice, title, config_path)
     # 创建保存文件夹
     os.makedirs(book_folder, exist_ok=True)
 
-    # 拼接小说内容字符串
-    introduction = f"""使用 @星隅(xing-yv) 所作开源工具下载
-开源仓库地址:https://github.com/xing-yv/7mao-novel-downloader
-Gitee:https://gitee.com/xingyv1024/7mao-novel-downloader/
-任何人无权限制您访问本工具，如果有向您提供代下载服务者未事先告知您工具的获取方式，请向作者举报:xing_yv@outlook.com
-
-{title}
-{info}
-{intro}
-"""
     # 转换简介内容格式
     introduction_data = introduction.encode(encoding, errors='ignore')
 
@@ -71,21 +41,22 @@ Gitee:https://gitee.com/xingyv1024/7mao-novel-downloader/
     else:
         # 找到起始章节的索引
         for i, chapter in enumerate(chapters):
-            chapter_url_tmp = chapter.find("a")["href"]  # 已删除不必要的urljoin
-            chapter_id_tmp = re.search(r"/(\d+)-(\d+)/", chapter_url_tmp).group(2)
+            chapter_id_tmp = chapter["id"]
             if chapter_id_tmp == start_chapter_id:  # 将 开始索引设置为用户的值
                 start_index = i
 
     # 遍历每个章节链接
-    for chapter in tqdm(chapters[start_index:]):
+    for chapter in tqdm(chapters[start_index:], desc="下载进度"):
 
         time.sleep(0.25)
         result = p.get_api(book_id, chapter)
 
-        if result is None:
+        if result == "skip":
             continue
+        elif result == "terminate":
+            break
         else:
-            chapter_title, chapter_text, chapter_id = result
+            chapter_title, chapter_text, _ = result
 
         # 在章节内容字符串中添加章节标题和内容
         content_all = f"{chapter_title}\n{chapter_text}"
@@ -119,7 +90,7 @@ Gitee:https://gitee.com/xingyv1024/7mao-novel-downloader/
         tqdm.write(f"已获取: {chapter_title}")
 
 
-def get_folder_path(path_choice, title):
+def get_folder_path(path_choice, title, config_path):
     folder_path = None
     # 如果用户选择自定义路径
     if path_choice == 1:
@@ -133,7 +104,7 @@ def get_folder_path(path_choice, title):
 
         while True:
 
-            # 弹出文件对话框以选择保存位置和文件名
+            # 弹出文件对话框以选择保存位置
             folder_path = filedialog.askdirectory()
 
             # 检查用户是否取消了对话框
@@ -144,11 +115,32 @@ def get_folder_path(path_choice, title):
             else:
                 print("已选择保存文件夹")
                 break
+        # 询问用户是否保存此路径
+        cho = input("是否使用此路径覆盖此模式默认保存路径（y/n(d)）？")
+        if not cho or cho == "n":
+            pass
+        else:
+            # 如果配置文件不存在，则创建
+            if not os.path.exists(config_path):
+                with open(config_path, "w") as c:
+                    json.dump({"path": {"chapter": folder_path}}, c)
+            else:
+                with open(config_path, "r") as c:
+                    config = json.load(c)
+                config["path"]["chapter"] = folder_path
+                with open(config_path, "w") as c:
+                    json.dump(config, c)
     elif path_choice == 0:
 
-        # 在程序文件夹下新建output文件夹，并定义文件路径
-
-        folder_path = "output"
-
+        # 定义文件名，检测是否有默认路径
+        if not os.path.exists(config_path):
+            folder_path = "output"
+        else:
+            with open(config_path, "r") as c:
+                config = json.load(c)
+            if "chapter" in config["path"]:
+                folder_path = config["path"]["chapter"]
+            else:
+                folder_path = "output"
         os.makedirs(folder_path, exist_ok=True)
     return os.path.join(folder_path, f"{title}")

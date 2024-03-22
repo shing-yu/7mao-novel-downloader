@@ -1,42 +1,21 @@
-"""
-作者：星隅（xing-yv）
-
-版权所有（C）2023 星隅（xing-yv）
-
-本软件根据GNU通用公共许可证第三版（GPLv3）发布；
-你可以在以下位置找到该许可证的副本：
-https://www.gnu.org/licenses/gpl-3.0.html
-
-根据GPLv3的规定，您有权在遵循许可证的前提下自由使用、修改和分发本软件。
-请注意，根据许可证的要求，任何对本软件的修改和分发都必须包括原始的版权声明和GPLv3的完整文本。
-
-本软件提供的是按"原样"提供的，没有任何明示或暗示的保证，包括但不限于适销性和特定用途的适用性。作者不对任何直接或间接损害或其他责任承担任何责任。在适用法律允许的最大范围内，作者明确放弃了所有明示或暗示的担保和条件。
-
-免责声明：
-该程序仅用于学习和研究Python网络爬虫和网页处理技术，不得用于任何非法活动或侵犯他人权益的行为。使用本程序所产生的一切法律责任和风险，均由用户自行承担，与作者和项目协作者、贡献者无关。作者不对因使用该程序而导致的任何损失或损害承担任何责任。
-
-请在使用本程序之前确保遵守相关法律法规和网站的使用政策，如有疑问，请咨询法律顾问。
-
-无论您对程序进行了任何操作，请始终保留此信息。
-"""
-
 # 导入必要的模块
 
-import asyncio
 import re
 import os
+import json
 import time
+import base64
 import datetime
 from tqdm import tqdm
 import hashlib
 import public as p
 from colorama import Fore, Style, init
-from get_bookinfo import get_book_info
 
 init(autoreset=True)
 
 
-def qimao_b(encoding, path_choice, data_folder):
+def qimao_b(encoding, path_choice, data_folder,
+            config_path):
 
     if not os.path.exists("urls.txt"):
         print("url.txt文件不存在")
@@ -52,11 +31,28 @@ def qimao_b(encoding, path_choice, data_folder):
             print("urls.txt文件为空")
             return
         else:
-            # 检查每行是否包含"/shuku/"，并且不是空行
-            for line in lines:
+            # 检查每行格式，并且不是空行
+            urls = []
+            for i, line in enumerate(lines, start=1):
                 line = line.strip()
-                if line and "/shuku/" not in line:
-                    print(f"语法错误：第{line}行")
+                try:
+                    if line is False:
+                        continue
+                        # 如果是空行，则跳过
+                    elif line.isdigit():
+                        book_id = line
+                        urls.append("https://www.qimao.com/shuku/" + book_id + "/")
+                    elif "www.qimao.com/shuku/" in line:
+                        book_id = re.search(r"www.qimao.com/shuku/(\d+)", line).group(1)
+                        urls.append("https://www.qimao.com/shuku/" + book_id + "/")
+                    elif "app-share.wtzw.com" in line:
+                        book_id = re.search(r"article-detail/(\d+)", line).group(1)
+                        urls.append("https://www.qimao.com/shuku/" + book_id + "/")
+                    else:
+                        print(Fore.YELLOW + Style.BRIGHT + f"无法识别的内容：第{i}行\n内容：{line}")
+                        return "file syntax is incorrect"
+                except AttributeError:
+                    print(Fore.YELLOW + Style.BRIGHT + f"链接无法识别：第{i}行\n内容：{line}")
                     return "file syntax is incorrect"
 
         print("urls.txt文件内容符合要求")
@@ -86,87 +82,94 @@ def qimao_b(encoding, path_choice, data_folder):
                 else:
                     print("已选择保存文件夹")
                     break
+            # 询问用户是否保存此路径
+            cho = input("是否使用此路径覆盖此模式默认保存路径（y/n(d)）？")
+            if not cho or cho == "n":
+                pass
+            else:
+                # 如果配置文件不存在，则创建
+                if not os.path.exists(config_path):
+                    with open(config_path, "w") as c:
+                        json.dump({"path": {"batch": folder_path}}, c)
+                else:
+                    with open(config_path, "r") as c:
+                        config = json.load(c)
+                    config["path"]["batch"] = folder_path
+                    with open(config_path, "w") as c:
+                        json.dump(config, c)
+
+        elif path_choice == 0:
+
+            # 定义文件名，检测是否有默认路径
+            if not os.path.exists(config_path):
+                folder_path = "output"
+            else:
+                with open(config_path, "r") as c:
+                    config = json.load(c)
+                if "batch" in config["path"]:
+                    folder_path = config["path"]["batch"]
+                else:
+                    folder_path = "output"
+            os.makedirs(folder_path, exist_ok=True)
 
         # 对于文件中的每个url，执行函数
-        for url in lines:
+        for url in urls:
             url = url.strip()  # 移除行尾的换行符
             if url:  # 如果url不为空（即，跳过空行）
-                download_novels(url, encoding, path_choice, folder_path, data_folder)
+                download_novels(url, encoding, folder_path, data_folder)
                 time.sleep(1)
 
     except Exception as e:
-        print(f"发生错误：{str(e)}")
+        print(Fore.RED + Style.BRIGHT + f"发生错误：{str(e)}")
         return f"发生错误：{str(e)}"
 
 
-# 定义批量模式用来下载7猫小说的函数
-def download_novels(url, encoding, path_choice, folder_path, data_folder):
+# 定义批量模式用来下载番茄小说的函数
+def download_novels(url, encoding, folder_path, data_folder):
 
     book_id = re.search(r"/(\d+)/", url).group(1)
 
     # 调用异步函数获取7猫信息（模拟浏览器）
-    book_info = asyncio.run(get_book_info(url))
-    title = book_info['title']
-    info = book_info['info']
-    intro = book_info['intro']
-    chapters = book_info['chapters']
+    try:
+        title, content, chapters = p.get_book_info(url)
+    except Exception as e:
+        print(Fore.RED + Style.BRIGHT + f"发生异常: \n{e}")
+        return
 
-    print(f"\n开始《{title}》的下载")
-
-    # 拼接小说内容字符串
-    content = f"""如果需要小说更新，请勿修改文件名
-    使用 @星隅(xing-yv) 所作开源工具下载
-    开源仓库地址:https://github.com/xing-yv/7mao-novel-downloader
-    Gitee:https://gitee.com/xingyv1024/7mao-novel-downloader/
-    任何人无权限制您访问本工具，如果有向您提供代下载服务者未事先告知您工具的获取方式，请向作者举报:xing_yv@outlook.com
-
-    {title}
-    {info}
-    {intro}
-    """
+    print(f"\n开始 《{title}》 的下载")
 
     chapter_id = None
 
+    length = len(chapters)
+    encryption_index = length // 2
+
     # 遍历每个章节链接
-    for chapter in tqdm(chapters):
+    for i, chapter in enumerate(tqdm(chapters, desc="下载进度")):
+
         time.sleep(1)
         result = p.get_api(book_id, chapter)
 
-        if result is None:
+        if result == "skip":
             continue
+        elif result == "terminate":
+            break
         else:
             chapter_title, chapter_text, chapter_id = result
 
-        # 去除其他 html 标签
-        # chapter_text = re.sub(r"</?\w+>", "", chapter_text)
-        #
-        # chapter_text = p.fix_publisher(chapter_text)
-
         # 在小说内容字符串中添加章节标题和内容
         content += f"\n\n\n{chapter_title}\n\n{chapter_text}"
+
+        if i == encryption_index:
+            content += base64.b64decode("CgoK5pys5bCP6K+06YCa6L+H5YWN6LS55byA5rqQ"
+                                        "5LiL6L295bel5YW3IGh0dHBzOi8vc291cmwuY24vZHZGS0VSIOS4i+i9veOAguWmguaenOaCqO"
+                                        "mBh+WIsOaUtui0ue+8jOivt+S4vuaKpeW5tuiBlOezu+S9nOiAhQoK").decode()
 
         # 打印进度信息
         tqdm.write(f"已获取 {chapter_title}")
 
     # 根据main.py中用户选择的路径方式，选择自定义路径或者默认
 
-    file_path = None
-
-    if path_choice == 1:
-
-        # 使用用户选择的文件夹路径和默认文件名来生成完整的文件路径
-
-        file_path = os.path.join(folder_path, f"{title}.txt")
-
-    elif path_choice == 0:
-
-        # 在程序文件夹下新建output文件夹，并把文件放入
-
-        output_folder = "output"
-
-        os.makedirs(output_folder, exist_ok=True)
-
-        file_path = os.path.join(output_folder, f"{title}.txt")
+    file_path = os.path.join(folder_path, f"{title}.txt")
 
     # 根据编码转换小说内容字符串为二进制数据
     data = content.encode(encoding, errors='ignore')
