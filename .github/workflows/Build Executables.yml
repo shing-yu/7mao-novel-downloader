@@ -1,9 +1,11 @@
 name: Build and Package Python Executables
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - '*' # Push events to matching tags
+
 
 jobs:
   build:
@@ -35,11 +37,11 @@ jobs:
     - name: Build Executable
       run: |
         if [ "${{ matrix.os }}" == "windows-latest" ]; then
-          pyinstaller --onefile --add-data "src/assets;." -n SLQimaoDownloader -i main.ico src/app.py
+          pyinstaller --onefile --add-data "src/assets;." -n SLQimaoDownloaderWindows -i main.ico src/app.py
         elif [ "${{ matrix.os }}" == "macos-latest" ]; then
-          pyinstaller --onefile --add-data "src/assets:." -n SLQimaoDownloader src/app.py
+          pyinstaller --onefile --add-data "src/assets:." -n SLQimaoDownloaderMacOS src/app.py
         else
-          pyinstaller --onefile --add-data "src/assets:." -n SLQimaoDownloader src/app.py
+          pyinstaller --onefile --add-data "src/assets:." -n SLQimaoDownloaderUbuntu src/app.py
         fi
       shell: bash
 
