@@ -22,6 +22,4 @@ build/
 # 忽略编译文件
 .mypy_cache/
 # 忽略测试文件
-src/test.py
-src/api_edition/cos-config.json
 src/setup.py

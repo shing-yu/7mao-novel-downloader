@@ -5,9 +5,9 @@
 #### Put an end to online violence, please do not maliciously harass or bully those listed.
 <br/>
 
-**这里将会列出那些使用本项目却不遵守GPL v3.0许可证的人员**
+**这里将会列出那些使用本项目却不遵守AGPL v3.0许可证的人员**
 
-**This file will list those who are using the project without complying with GPL v3.0 LICENSE.**
+**This file will list those who are using the project without complying with AGPL v3.0 LICENSE.**
 
 <br/>
 
