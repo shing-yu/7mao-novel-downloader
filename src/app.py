@@ -28,11 +28,11 @@ import requests
 from packaging import version
 import re
 import json
-import datetime
 import hashlib
 from ebooklib import epub
 import sys
 import atexit
+import shutil
 
 
 class MainProgram:
@@ -42,12 +42,13 @@ class MainProgram:
         self.book_id: str = "None"                              # 书籍ID（单本）
         self.books: list = []                                   # 书籍ID（批量）
         self.encoding: str = "utf-8"                            # 编码
+        self.path: str = ""                                     # 保存路径
         self.user_folder: str = os.path.expanduser("~")         # 用户文件夹
-        self.__rename_old_folder()                              # 重命名旧数据文件夹
         self.data_folder: str = os.path.join(self.user_folder, "SLQimao")       # 数据文件夹
+        self.__rename_old_folder()                              # 重命名旧数据文件夹
         # 创建数据文件夹
         os.makedirs(self.data_folder, exist_ok=True)
-        self.eula_path: str = os.path.join(self.data_folder, "eulan.txt")        # EULA文件路径
+        self.eula_path: str = os.path.join(self.data_folder, "eulan.txt")       # EULA文件路径
         self.config_path: str = os.path.join(self.data_folder, "config.json")   # 配置文件路径
         self.eula_url: str = "https://gitee.com/xingyv1024/7mao-novel-downloader/raw/main/EULA.md"
         # EULA地址
@@ -72,9 +73,13 @@ class MainProgram:
 
     def __rename_old_folder(self):
         old_data_folder = os.path.join(self.user_folder, "qimao_data")
-        # 重命名旧数据文件夹
+        # 移动旧数据文件夹
         if os.path.exists(old_data_folder):
-            os.rename(old_data_folder, os.path.join(self.user_folder, "SLQimao"))
+            # os.rename(old_data_folder, os.path.join(self.user_folder, "SLQimao"))
+            for file in os.listdir(old_data_folder):
+                shutil.move(os.path.join(old_data_folder, file), os.path.join(self.data_folder, file))
+            shutil.rmtree(old_data_folder)
+            # 使用移动而不是重命名，防止同时存在两个文件夹
 
     def __check_instance(self):
         # 通过端口检查是否有其他实例正在运行
@@ -733,12 +738,13 @@ None
             try:
                 if m_epub is True:
                     # 根据元信息获取小说id
-                    epubo = epub.read_epub(file_path)
+                    epubo = epub.read_epub(file_path, options={"ignore_ncx": True})
                     novel_name = epubo.title
-                    book_id = epubo.get_metadata("DC", "bookid")
+                    book_id = epubo.get_metadata("DC", "bookid")[0][0]
                     novel = book.Book(book_id)
                     novel.ready()
-                    novel.toepub(self.path)
+                    novel.toepub(os.path.dirname(file_path), font=self.font_file,
+                                 css1=self.css1_file, css2=self.css2_file)
                     return
 
                 txt_file = os.path.basename(file_path)
@@ -790,22 +796,9 @@ None
                     if novel.catalog[-1]["id"] == last_chapter_id:
                         print(f"{novel_name} 已是最新，不需要更新。\n")
                         return
-                    novel.totxt(self.path, encoding)
-                    result = novel.lastcid
+                    novel.totxt(os.path.dirname(file_path), encoding)
                     print(f"{novel_name} 已更新完成。\n")
-                    # 计算文件 sha256 值
-                    hash_sha256 = hashlib.sha256()
-                    with open(file_path, "rb") as f:
-                        for chunk in iter(lambda: f.read(4096), b""):
-                            hash_sha256.update(chunk)
-                    sha256_hash = hash_sha256.hexdigest()
-                    # 获取当前系统时间
-                    current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    # 创建要写入元信息文件的内容
-                    new_content = f"{current_time}\n{self.book_id}\n{result}\n{encoding}\n{sha256_hash}"
-                    # 打开文件并完全覆盖内容
-                    with open(upd_file_path, "w") as file:
-                        file.write(new_content)
+                    novel.write_update(self.data_folder)
                 else:
                     print(f"{txt_file} 不是通过此工具下载，无法更新")
             except Exception as e:
