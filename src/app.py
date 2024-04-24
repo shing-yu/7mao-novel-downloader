@@ -45,9 +45,9 @@ class MainProgram:
         self.path: str = ""                                     # 保存路径
         self.user_folder: str = os.path.expanduser("~")         # 用户文件夹
         self.data_folder: str = os.path.join(self.user_folder, "SLQimao")       # 数据文件夹
-        self.__rename_old_folder()                              # 重命名旧数据文件夹
         # 创建数据文件夹
         os.makedirs(self.data_folder, exist_ok=True)
+        self.__rename_old_folder()                              # 重命名旧数据文件夹
         self.eula_path: str = os.path.join(self.data_folder, "eulan.txt")       # EULA文件路径
         self.config_path: str = os.path.join(self.data_folder, "config.json")   # 配置文件路径
         self.eula_url: str = "https://gitee.com/xingyv1024/7mao-novel-downloader/raw/main/EULA.md"
