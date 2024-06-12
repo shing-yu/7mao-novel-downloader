@@ -520,6 +520,9 @@ def search() -> str | None:
 
             for i, book in enumerate(books):
                 try:
+                    # 如果没有字数信息则显示未知
+                    if "words_num" not in book:
+                        book["words_num"] = "未知"
                     print(f"{i + 1}. 名称：{book['original_title']} 作者：{book['original_author']} "
                           f"ID：{book['id']} 字数：{book['words_num']}")
                 except KeyError:
