@@ -20,7 +20,7 @@ from colorama import Fore, Style, init
 import os
 import platform
 
-__version__ = "v1.0.1"  # SLQimao Core Version
+__version__ = "v1.0.2"  # SLQimao Core Version
 
 init(autoreset=True)
 

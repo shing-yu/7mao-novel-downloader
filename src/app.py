@@ -37,7 +37,7 @@ import shutil
 
 class MainProgram:
     def __init__(self):
-        self.__version__: str = "v4.0.1"                     # 主程序版本
+        self.__version__: str = "v4.0.2"                     # 主程序版本
         self.mode: str = ""                                     # 模式
         self.book_id: str = "None"                              # 书籍ID（单本）
         self.books: list = []                                   # 书籍ID（批量）
