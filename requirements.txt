@@ -2,7 +2,7 @@ requests
 beautifulsoup4
 packaging
 ebooklib
-tqdm
+rich
 colorama
 pycryptodome
 PyYAML
