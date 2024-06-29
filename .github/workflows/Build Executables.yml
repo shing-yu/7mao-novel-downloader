@@ -2,9 +2,6 @@ name: Build and Package Python Executables
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - '*' # Push events to matching tags
 
 
 jobs:
@@ -22,7 +19,7 @@ jobs:
     - name: Setup Python
       uses: actions/setup-python@v2
       with:
-        python-version: 3.11.5
+        python-version: 3.12.4
 
     - name: Install Dependencies
       run: |
