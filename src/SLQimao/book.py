@@ -6,7 +6,16 @@ import re
 from base64 import b64decode
 from Crypto.Cipher import AES  # noqa
 from Crypto.Util.Padding import unpad  # noqa
-import tqdm
+# import tqdm
+from rich.progress import (
+    Progress,
+    BarColumn,
+    TimeElapsedColumn,
+    TimeRemainingColumn,
+    SpinnerColumn,
+    TaskProgressColumn,
+    DownloadColumn
+)
 import time
 import zipfile
 import os
@@ -222,7 +231,7 @@ Gitee:https://gitee.com/xingyv1024/7mao-novel-downloader/
             self.message = message
             super().__init__(self.message)
 
-    def _gaunade(self) -> list:
+    def _gaunade(self) -> int:
         """
         出于保护因素，项目内核模块的核心部分代码经社区讨论，决定暂时保持私有状态。
         """
